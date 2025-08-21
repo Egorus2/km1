@@ -85,6 +85,10 @@ void Error_Handler(void);
 #define OPT_LINEAR_B_ITR6_GPIO_Port GPIOD
 #define OPT_LINEAR_A_ITR7_Pin GPIO_PIN_7
 #define OPT_LINEAR_A_ITR7_GPIO_Port GPIOD
+#define HX711_CLK_Pin GPIO_PIN_3
+#define HX711_CLK_GPIO_Port GPIOB
+#define HX711_DOUT_Pin GPIO_PIN_4
+#define HX711_DOUT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
