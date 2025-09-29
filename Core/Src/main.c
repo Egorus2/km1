@@ -19,8 +19,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
+#include <string.h>
+
 #include "hx711.h"
 /* USER CODE END Includes */
 
@@ -31,7 +35,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define UART_START_BYTE 0xFE
+#define UART_STOP_BYTE 0xFF
+#define UART_TX_BUF_LEN 3 + sizeof(uint32_t) + sizeof(long int)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -63,7 +69,7 @@ hx711_t hx711_handle;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+volatile bool new_data = 0;
 /* USER CODE END 0 */
 
 /**
@@ -101,6 +107,14 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   hx711_init(&hx711_handle, HX711_CLK_GPIO_Port, HX711_CLK_Pin, HX711_DOUT_GPIO_Port, HX711_DOUT_Pin);
+  hx711_coef_set(&hx711_handle, 354.5); // read afer calibration
+  hx711_tare(&hx711_handle, 10);
+
+
+  uint8_t tx_buffer [UART_TX_BUF_LEN] = {0};
+  tx_buffer[0] = UART_START_BYTE;
+  tx_buffer[UART_TX_BUF_LEN - 2] = UART_STOP_BYTE;
+  tx_buffer[UART_TX_BUF_LEN - 1] = (uint8_t)'\n';
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -108,7 +122,11 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  float weight = hx711_weight(&hx711_handle,100);
+	  char buffer [100] = {0};
+	  sprintf(buffer, "Weight: %f \n", weight);
+  	  HAL_UART_Transmit(&huart1, (uint8_t *) buffer, sizeof(buffer), HAL_MAX_DELAY);
+  	  HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
