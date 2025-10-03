@@ -67,10 +67,12 @@ void Error_Handler(void);
 #define RS485_TX_GPIO_Port GPIOD
 #define MOTOR_ENC_A_ITR11_Pin GPIO_PIN_11
 #define MOTOR_ENC_A_ITR11_GPIO_Port GPIOD
+#define MOTOR_ENC_A_ITR11_EXTI_IRQn EXTI15_10_IRQn
 #define RS485_DE_Pin GPIO_PIN_12
 #define RS485_DE_GPIO_Port GPIOD
 #define ENC_Z_ITR12_Pin GPIO_PIN_12
 #define ENC_Z_ITR12_GPIO_Port GPIOA
+#define ENC_Z_ITR12_EXTI_IRQn EXTI15_10_IRQn
 #define RS232_TX_Pin GPIO_PIN_12
 #define RS232_TX_GPIO_Port GPIOC
 #define ENC_A_ITR0_Pin GPIO_PIN_0
@@ -89,6 +91,7 @@ void Error_Handler(void);
 #define HX711_CLK_GPIO_Port GPIOB
 #define HX711_DOUT_Pin GPIO_PIN_4
 #define HX711_DOUT_GPIO_Port GPIOB
+
 
 /* USER CODE BEGIN Private defines */
 
