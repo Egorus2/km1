@@ -116,12 +116,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  float weight = hx711_weight(&hx711_handle,100);
-	  char buffer [100] = {0};
-	  sprintf(buffer, "Weight: %f \n", weight);
-  	  HAL_UART_Transmit(&huart1, (uint8_t *) buffer, sizeof(buffer), HAL_MAX_DELAY);
-  	  HAL_Delay(1000);
+
     /* USER CODE BEGIN 3 */
+	  float weight = hx711_weight(&hx711_handle,100);
+	  uint32_t tenso_data = (uint32_t) hx711_value(&hx711_handle);
+	  char buffer [100] = {0};
+	  //sprintf(buffer, "Weight: %f \n", weight);
+      memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
+  	  HAL_UART_Transmit(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer), HAL_MAX_DELAY);
+  	  HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
