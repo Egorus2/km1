@@ -62,18 +62,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(MOTOR_ENC_B_ITR9_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_Pin ENC_A_ITR0_Pin ENC_B_ITR1_Pin OPT_LINEAR_Z_ITR5_Pin
-                           OPT_LINEAR_B_ITR6_Pin OPT_LINEAR_A_ITR7_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_Pin|ENC_A_ITR0_Pin|ENC_B_ITR1_Pin|OPT_LINEAR_Z_ITR5_Pin
-                          |OPT_LINEAR_B_ITR6_Pin|OPT_LINEAR_A_ITR7_Pin;
+  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_Pin PD13 OPT_LINEAR_Z_ITR5_Pin OPT_LINEAR_B_ITR6_Pin
+                           OPT_LINEAR_A_ITR7_Pin */
+  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_Pin|GPIO_PIN_13|OPT_LINEAR_Z_ITR5_Pin|OPT_LINEAR_B_ITR6_Pin
+                          |OPT_LINEAR_A_ITR7_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PD13 PD15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pin : ENC_Z_ITR12_Pin */
@@ -82,7 +76,22 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ENC_Z_ITR12_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : ENC_A_ITR0_Pin ENC_B_ITR1_Pin */
+  GPIO_InitStruct.Pin = ENC_A_ITR0_Pin|ENC_B_ITR1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 

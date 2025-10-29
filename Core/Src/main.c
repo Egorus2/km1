@@ -40,6 +40,8 @@
 #define UART_START_BYTE 0xFE
 #define UART_STOP_BYTE 0xFF
 #define UART_TX_BUF_LEN 3 + sizeof(uint32_t) + sizeof(long int)
+#define ENCODER_PPR 1000
+#define TIMER_PERIOD_MS 100
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,6 +64,68 @@ hx711_t hx711_handle;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 volatile bool new_data = 0;
+volatile int32_t encoder_position = 0;  // текущая позиция энкодера
+volatile int32_t last_position = 0;     // позиция на предыдущем измерении
+volatile float encoder_rpm = 0.0f;      // скорость вращения
+volatile uint32_t last_tick = 0;
+volatile int32_t motor_encoder_position;  // текущая позиция энкодера
+volatile int32_t motor_last_position;     // позиция на предыдущем измерении
+volatile float motor_encoder_rpm;      // скорость вращения
+volatile uint32_t motor_last_tick;
+
+void Encoder_Init(void)
+{
+    encoder_position = 0;
+    last_position = 0;
+    encoder_rpm = 0.0f;
+    last_tick = HAL_GetTick();
+    motor_encoder_position = 0;
+    motor_last_position = 0;
+    motor_encoder_rpm = 0.0f;
+    motor_last_tick = HAL_GetTick();
+}
+
+void Encoder_UpdateRPM(void)
+{
+    uint32_t current_tick = HAL_GetTick();
+    int32_t delta_pos = encoder_position - last_position;
+
+    // RPM = (Δимпульсы * 60000) / (PPR * Δt(ms))
+    encoder_rpm = (delta_pos * 60000.0f) / (ENCODER_PPR * (current_tick - last_tick));
+
+    last_position = encoder_position;
+    last_tick = current_tick;
+
+    uint32_t motor_current_tick = HAL_GetTick();
+    int32_t motor_delta_pos = motor_encoder_position - motor_last_position;
+
+    // RPM = (Δимпульсы * 60000) / (PPR * Δt(ms))
+    motor_encoder_rpm = (motor_delta_pos * 60000.0f) / (ENCODER_PPR * (motor_current_tick - motor_last_tick));
+
+    motor_last_position = motor_encoder_position;
+    motor_last_tick = motor_current_tick;
+}
+
+int32_t Encoder_GetPosition(void)
+{
+    return encoder_position;
+}
+
+int32_t Encoder_GetRPM(void)
+{
+    return encoder_rpm;
+}
+
+int32_t Motor_Encoder_GetPosition(void)
+{
+    return motor_encoder_position;
+}
+
+int32_t Motor_Encoder_GetRPM(void)
+{
+    return motor_encoder_rpm;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -109,6 +173,8 @@ int main(void)
   tx_buffer[UART_TX_BUF_LEN - 1] = (uint8_t)'\n';
 
 
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,13 +184,31 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  float weight = hx711_weight(&hx711_handle,100);
-	  uint32_t tenso_data = (uint32_t) hx711_value(&hx711_handle);
-	  char buffer [100] = {0};
-	  //sprintf(buffer, "Weight: %f \n", weight);
-      memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
-  	  HAL_UART_Transmit(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer), HAL_MAX_DELAY);
-  	  HAL_Delay(1000);
+
+
+
+	  if (new_data)
+	  {
+		  //HAL_Delay(100);
+		  //uint32_t tenso_data = (uint32_t) hx711_value(&hx711_handle);
+		  //memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
+		  //HAL_UART_Transmit_IT(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer));
+		  //HAL_Delay(1000);
+
+
+		  Encoder_UpdateRPM();
+		  char buffer1[64];
+		  char buffer2[64];
+		  int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+		  HAL_Delay(100);
+		  //int len1 = snprintf(buffer2, sizeof(buffer2), "Pos: %ld, RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
+		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
+
+
+		  new_data = false;
+	  }
+
   }
   /* USER CODE END 3 */
 }
