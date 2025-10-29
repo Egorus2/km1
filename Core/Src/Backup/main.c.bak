@@ -173,6 +173,8 @@ int main(void)
   tx_buffer[UART_TX_BUF_LEN - 1] = (uint8_t)'\n';
 
 
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -182,6 +184,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+
 
 	  if (new_data)
 	  {
