@@ -22,6 +22,8 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+//#include "mb.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -164,6 +166,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+  //eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  //eMBEnable();
   hx711_init(&hx711_handle, HX711_CLK_GPIO_Port, HX711_CLK_Pin, HX711_DOUT_GPIO_Port, HX711_DOUT_Pin);
   hx711_coef_set(&hx711_handle, 354.5); // read afer calibration
   hx711_tare(&hx711_handle, 10);
@@ -184,32 +188,35 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  //eMBPoll();
     /* USER CODE BEGIN 3 */
 
 
 
-	  if (new_data)
-	  {
-		  //HAL_Delay(100);
+
+		  //HAL_Delay(1000);
 		  //uint32_t tenso_data = (uint32_t) hx711_value(&hx711_handle);
 		  //memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
 		  //HAL_UART_Transmit_IT(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer));
 		  //HAL_Delay(1000);
+		  //  UCHAR frame[] = { 0x06, 0x18, 0x01, 0x40, 0x01 };  // функция 0x06, регистр 0x1801, значение 0x4001
+		  //  USHORT len = 5;
+		  //  Modbus_WriteSingleRegister(&huart3, 1, 0x1801, 0x4001);
+		  //  HAL_Delay(3000);
+		  //  Modbus_WriteSingleRegister(&huart3, 1, 0x1801, 0x0400);
 
-
-		  Encoder_UpdateRPM();
-		  char buffer1[64];
-		  char buffer2[64];
-		  int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
-		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
-		  HAL_Delay(100);
+	  	  HAL_UART_Transmit_IT(&huart3, "1231231", 8);
+		  //Encoder_UpdateRPM();
+		  //char buffer1[64];
+		  //char buffer2[64];
+		  //int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
+		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+		  //HAL_Delay(100);
 		  //int len1 = snprintf(buffer2, sizeof(buffer2), "Pos: %ld, RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
 		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
 
 
-		  new_data = false;
-	  }
+
 
   }
   /* USER CODE END 3 */

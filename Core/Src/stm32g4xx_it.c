@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include <string.h>
+#include "port.h"
 extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
@@ -53,6 +54,7 @@ extern volatile int32_t motor_last_position;     // позиция на пред
 extern volatile float motor_encoder_rpm;      // скорость вращения
 extern volatile uint32_t motor_last_tick;
 extern bool new_data;
+extern uint16_t downcounter;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -261,7 +263,12 @@ void EXTI9_5_IRQHandler(void)
 void TIM4_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM4_IRQn 0 */
-
+	/* TIM Update event */
+	if(__HAL_TIM_GET_FLAG(&htim4, TIM_FLAG_UPDATE) != RESET && __HAL_TIM_GET_IT_SOURCE(&htim4, TIM_IT_UPDATE) !=RESET) {
+		__HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
+		if (!--downcounter)
+			prvvTIMERExpiredISR();
+	}
   /* USER CODE END TIM4_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
   /* USER CODE BEGIN TIM4_IRQn 1 */
@@ -289,7 +296,8 @@ void USART1_IRQHandler(void)
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
-
+    if (FALSE != UART_IRQ_Handler(USART1))
+        return;
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
