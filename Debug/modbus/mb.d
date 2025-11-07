@@ -1,4 +1,5 @@
-modbus/mb.o: ../modbus/mb.c C:/KMStand/kmstand/modbus/BARE/port/port.h \
+modbus/mb.o: ../modbus/mb.c \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h \
  ../Core/Inc/stm32g4xx_hal_conf.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h \
@@ -30,16 +31,16 @@ modbus/mb.o: ../modbus/mb.c C:/KMStand/kmstand/modbus/BARE/port/port.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
- C:/KMStand/kmstand/modbus/include/mb.h \
- C:/KMStand/kmstand/modbus/include/mbport.h \
- C:/KMStand/kmstand/modbus/include/mbproto.h \
- C:/KMStand/kmstand/modbus/include/mbconfig.h \
- C:/KMStand/kmstand/modbus/include/mbframe.h \
- C:/KMStand/kmstand/modbus/include/mbproto.h \
- C:/KMStand/kmstand/modbus/include/mbfunc.h \
- C:/KMStand/kmstand/modbus/include/mbport.h \
- C:/KMStand/kmstand/modbus/rtu/mbrtu.h
-C:/KMStand/kmstand/modbus/BARE/port/port.h:
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbconfig.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbframe.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbfunc.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/rtu/mbrtu.h
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h:
@@ -71,12 +72,12 @@ C:/KMStand/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h:
-C:/KMStand/kmstand/modbus/include/mb.h:
-C:/KMStand/kmstand/modbus/include/mbport.h:
-C:/KMStand/kmstand/modbus/include/mbproto.h:
-C:/KMStand/kmstand/modbus/include/mbconfig.h:
-C:/KMStand/kmstand/modbus/include/mbframe.h:
-C:/KMStand/kmstand/modbus/include/mbproto.h:
-C:/KMStand/kmstand/modbus/include/mbfunc.h:
-C:/KMStand/kmstand/modbus/include/mbport.h:
-C:/KMStand/kmstand/modbus/rtu/mbrtu.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbconfig.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbframe.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbfunc.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/rtu/mbrtu.h:

@@ -1,5 +1,5 @@
 modbus/rtu/mbrtu.o: ../modbus/rtu/mbrtu.c \
- C:/KMStand/kmstand/modbus/BARE/port/port.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h \
  ../Core/Inc/stm32g4xx_hal_conf.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h \
@@ -31,12 +31,14 @@ modbus/rtu/mbrtu.o: ../modbus/rtu/mbrtu.c \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
- C:/KMStand/kmstand/modbus/include/mb.h \
- C:/KMStand/kmstand/modbus/include/mbport.h \
- C:/KMStand/kmstand/modbus/include/mbproto.h ../modbus/rtu/mbrtu.h \
- C:/KMStand/kmstand/modbus/include/mbframe.h ../modbus/rtu/mbcrc.h \
- C:/KMStand/kmstand/modbus/include/mbport.h
-C:/KMStand/kmstand/modbus/BARE/port/port.h:
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
+ ../modbus/rtu/mbrtu.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbframe.h \
+ ../modbus/rtu/mbcrc.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h:
@@ -68,10 +70,10 @@ C:/KMStand/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h:
-C:/KMStand/kmstand/modbus/include/mb.h:
-C:/KMStand/kmstand/modbus/include/mbport.h:
-C:/KMStand/kmstand/modbus/include/mbproto.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
 ../modbus/rtu/mbrtu.h:
-C:/KMStand/kmstand/modbus/include/mbframe.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbframe.h:
 ../modbus/rtu/mbcrc.h:
-C:/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:

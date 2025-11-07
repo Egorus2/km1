@@ -22,8 +22,6 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-//#include "mb.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -66,6 +64,7 @@ hx711_t hx711_handle;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+volatile long int optical_count;
 volatile bool new_data = 0;
 volatile int32_t encoder_position = 0;  // текущая позиция энкодера
 volatile int32_t last_position = 0;     // позиция на предыдущем измерении
@@ -75,6 +74,19 @@ volatile int32_t motor_encoder_position;  // текущая позиция эн�
 volatile int32_t motor_last_position;     // позиция на предыдущем измерении
 volatile float motor_encoder_rpm;      // скорость вращения
 volatile uint32_t motor_last_tick;
+
+int state = 0;
+int prev_state = 0;
+
+enum states
+{
+	Initialization = 0,
+	Calibration = 10,
+	Working = 20,
+	Stop = 30,
+	Emergency_stop = 40
+};
+
 
 void Encoder_Init(void)
 {
@@ -188,10 +200,55 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  //eMBPoll();
+
     /* USER CODE BEGIN 3 */
 
+	switch(state)
+	{
+		case(Initialization):
+		{
+			//Добавить ввод данных(Режим работы, скорость, усилие)
+			//Добавить вывод всех данных
+			Encoder_Init();
+			state = Calibration;
+			prev_state = Initialization;
+			break;
+		}
+		case(Calibration):
+		{
 
+			break;
+		}
+		case(Working):
+		{
+
+			break;
+		}
+		case(Stop):
+		{
+
+			break;
+		}
+		case(Emergency_stop):
+		{
+
+			break;
+		}
+	}
+
+
+	  if(new_data)
+	  {
+
+
+	      long int optical_count_buf = optical_count;
+
+	      char buffer1[64];
+	      int len = snprintf(buffer1, sizeof(buffer1), "Opt linear: %ld\n", optical_count_buf);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+
+	      //memcpy(tx_buffer + 1 + sizeof(uint32_t), &optical_count_buf, sizeof(long int));
+	      //HAL_UART_Transmit(&huart1, tx_buffer, UART_TX_BUF_LEN, HAL_MAX_DELAY);
 
 
 		  //HAL_Delay(1000);
@@ -205,17 +262,17 @@ int main(void)
 		  //  HAL_Delay(3000);
 		  //  Modbus_WriteSingleRegister(&huart3, 1, 0x1801, 0x0400);
 
-	  	  HAL_UART_Transmit_IT(&huart3, "1231231", 8);
+	  	  //HAL_UART_Transmit_IT(&huart3, "1231231", 8);
 		  //Encoder_UpdateRPM();
 		  //char buffer1[64];
 		  //char buffer2[64];
 		  //int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
 		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
-		  //HAL_Delay(100);
+		  HAL_Delay(100);
 		  //int len1 = snprintf(buffer2, sizeof(buffer2), "Pos: %ld, RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
 		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
-
-
+		  new_data = false;
+	  }
 
 
   }

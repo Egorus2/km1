@@ -45,6 +45,7 @@ extern UART_HandleTypeDef huart1;
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+extern long int optical_count;
 extern int32_t encoder_position;  // текущая позиция энкодера
 extern volatile int32_t last_position;     // позиция на предыдущем измерении
 extern volatile float encoder_rpm;      // скорость вращения
@@ -55,6 +56,8 @@ extern volatile float motor_encoder_rpm;      // скорость вращени
 extern volatile uint32_t motor_last_tick;
 extern bool new_data;
 extern uint16_t downcounter;
+volatile uint8_t last_state = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -220,6 +223,7 @@ void SysTick_Handler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
+  new_data = true;
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(ENC_A_ITR0_Pin);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -253,6 +257,37 @@ void EXTI9_5_IRQHandler(void)
   HAL_GPIO_EXTI_IRQHandler(OPT_LINEAR_A_ITR7_Pin);
   HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_B_ITR9_Pin);
   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+  GPIO_PinState first_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_A_ITR7_GPIO_Port, OPT_LINEAR_A_ITR7_Pin);
+  GPIO_PinState second_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_B_ITR6_GPIO_Port, OPT_LINEAR_B_ITR6_Pin);
+  GPIO_PinState zero_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_Z_ITR5_GPIO_Port, OPT_LINEAR_Z_ITR5_Pin);
+
+
+
+    if (second_optical_signal == GPIO_PIN_SET)
+    {
+      optical_count++;
+    }
+    else
+    {
+      optical_count--;
+    }
+
+
+    if (first_optical_signal == GPIO_PIN_SET)
+    {
+      optical_count--;
+    }
+    else
+    {
+      optical_count++;
+    }
+
+  if (zero_optical_signal == GPIO_PIN_SET)
+  {
+    optical_count = 0;
+  }
+  new_data = true;
+
 
   /* USER CODE END EXTI9_5_IRQn 1 */
 }
@@ -315,6 +350,7 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE END EXTI15_10_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_Pin);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
   HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
@@ -338,25 +374,58 @@ void UART5_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	    uint8_t a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
+	    uint8_t b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
+	    uint8_t state = (a << 1) | b;
 
+	    if (GPIO_Pin == ENC_A_ITR0_Pin || GPIO_Pin == ENC_B_ITR1_Pin)
+	    {
+	        // таблица направлений (Gray code)
+	        if ((last_state == 0b00 && state == 0b01) ||
+	            (last_state == 0b01 && state == 0b11) ||
+	            (last_state == 0b11 && state == 0b10) ||
+	            (last_state == 0b10 && state == 0b00))
+	        {
+	            encoder_position++;
+	        }
+	        else if ((last_state == 0b00 && state == 0b10) ||
+	                 (last_state == 0b10 && state == 0b11) ||
+	                 (last_state == 0b11 && state == 0b01) ||
+	                 (last_state == 0b01 && state == 0b00))
+	        {
+	            encoder_position--;
+	        }
+	        last_state = state;
+	    }
+/*
 	if(GPIO_Pin == ENC_A_ITR0_Pin) // A
     {
         if(HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin) == GPIO_PIN_SET)
+        {
             encoder_position++;  // вращение вперед
+			char msg1 = '+'; // символ для отправки
+			HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+        }
         else
+        {
             encoder_position--;  // вращение назад
+			char msg1 = '-'; // символ для отправки
+			HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+        }
     }
-    else if(GPIO_Pin == ENC_B_ITR1_Pin) // B (для x4 декодирования)
-    {
-        if(HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin) == GPIO_PIN_SET)
-            encoder_position--;  // вращение назад
-        else
-            encoder_position++;  // вращение вперед
-    }
-    else if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
+    //else if(GPIO_Pin == ENC_B_ITR1_Pin) // B (для x4 декодирования)
+    //{
+    //    if(HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin) == GPIO_PIN_SET)
+    //        encoder_position--;  // вращение назад
+    //    else
+    //        encoder_position++;  // вращение вперед
+    //}*/
+
+    if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
     {
         encoder_position = 0; // сброс позиции на индекс
     }
+
 
 	/*if(GPIO_Pin == MOTOR_ENC_A_ITR11_Pin) // A
 		{
@@ -376,13 +445,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	if(GPIO_Pin == GPIO_PIN_13)
 	{
-		//char msg = 'A'; // символ для отправки
-		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
+		char msg = 'A'; // символ для отправки
+		HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
 	}
-	else if(GPIO_Pin == GPIO_PIN_15)
+	else if(GPIO_Pin == GPIO_PIN_14)
 	{
-		//char msg1 = 'B'; // символ для отправки
-		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+		char msg1 = 'B'; // символ для отправки
+		HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
 	}
 
 	new_data = true;
