@@ -43,6 +43,9 @@
 #define UART_TX_BUF_LEN 3 + sizeof(uint32_t) + sizeof(long int)
 #define ENCODER_PPR 1000
 #define TIMER_PERIOD_MS 100
+
+#define SLAVE_ID    1
+#define MODBUS_FUNC_WRITE_REG  0x06
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -74,6 +77,25 @@ volatile int32_t motor_encoder_position;  // текущая позиция эн�
 volatile int32_t motor_last_position;     // позиция на предыдущем измерении
 volatile float motor_encoder_rpm;      // скорость вращения
 volatile uint32_t motor_last_tick;
+
+
+//Основные переменные характеризующие состояние стенда
+volatile int opt_lim_1;// пределы шкалы оптической линейки
+volatile int opt_lim_2;
+volatile bool limit_flag_1 = 0;//флаги срабатывания концевиков
+volatile bool limit_flag_2 = 0;
+
+float tenso_data;//текущая нагрузка
+float set_tenso_data;//заданная требуемая нагрузка
+
+float velocity;//текущая скорость
+float set_velocity;//заданная тремуемая скорость
+
+float position;//текущая позиция
+float set_default_position;//заданное нулевое положение
+
+float angle; //текущий угол
+float set_angle; //заданное значение угла
 
 int state = 0;
 int prev_state = 0;
@@ -147,6 +169,45 @@ int32_t Motor_Encoder_GetRPM(void)
   * @brief  The application entry point.
   * @retval int
   */
+
+
+
+void Modbus_WriteRegister(uint8_t slave, uint16_t reg_addr, uint16_t value) {
+    uint8_t tx[8];
+    tx[0] = slave;
+    tx[1] = MODBUS_FUNC_WRITE_REG;
+    tx[2] = reg_addr >> 8;
+    tx[3] = reg_addr & 0xFF;
+    tx[4] = value >> 8;
+    tx[5] = value & 0xFF;
+    uint16_t crc = Modbus_CRC16(tx, 6);
+    tx[6] = crc & 0xFF;
+    tx[7] = crc >> 8;
+
+    HAL_UART_Transmit(&huart3, tx, 8, 100);
+    HAL_Delay(10); // небольшая пауза
+}
+
+
+void Motor_Test(void) {
+    // Установка тока и скорости
+    Modbus_WriteRegister(SLAVE_ID, 0x0191, 20);   // ток 2.0A
+    HAL_Delay(50);
+    Modbus_WriteRegister(SLAVE_ID, 0x01E1, 200);  // скорость 200 rpm
+    HAL_Delay(50);
+
+    // Вперёд
+    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x4001);
+    HAL_Delay(3000);
+
+    // Назад
+    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x4002);
+    HAL_Delay(3000);
+
+    // Стоп
+    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x0400);
+}
+
 int main(void)
 {
 
@@ -197,6 +258,14 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
+  HAL_Delay(500);
+
+  Motor_Test();
+
+
+
   while (1)
   {
     /* USER CODE END WHILE */
@@ -209,6 +278,10 @@ int main(void)
 		{
 			//Добавить ввод данных(Режим работы, скорость, усилие)
 			//Добавить вывод всех данных
+			//set_tenso_data = ;
+			//set_default_position = ;
+			//set_velocity = ;
+			//set_angle = ;
 			Encoder_Init();
 			state = Calibration;
 			prev_state = Initialization;
@@ -216,12 +289,56 @@ int main(void)
 		}
 		case(Calibration):
 		{
+			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
+			while(limit_flag_1 = 0)
+			{
+				//движение мотора в сторону концевика 1
+			}
+			opt_lim_1 = optical_count;
+			//короткий jog мотора в сторону концевика 2
+			while(limit_flag_2 = 0)
+			{
+				//движение мотора в сторону концевика 2
+			}
+			opt_lim_2 = optical_count;
+			//короткий jog мотора в сторону концевика 2
 
+			//если нужна нормировка шкалы [0, ...]
+			/*
+			 * opt_lim_1 = 0;
+			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
+			 * position = encoder_position - opt_lim_1;
+			 */
+			while(position > set_default_position)
+			{
+				//короткий jog мотора в сторону концевика 1
+				position = encoder_position;
+
+			}
+
+			state = Working;
+			prev_state = Calibration;
 			break;
 		}
 		case(Working):
 		{
+			//сжатие до обеспечения заданной нагрузки
+			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+			tenso_data = hx711_value(&hx711_handle);
+			while(tenso_data < set_tenso_data)
+			{
+				//которкий jog мотора в направлении сжатия/растяжения(в зависимости от режима)
+				tenso_data = hx711_value(&hx711_handle);
 
+				if (limit_flag_1 || limit_flag_2 = 1)
+				{
+					state = Emergency_stop;
+					prev_state = Working;
+					break;
+				}
+			}
+			state = Stop;
+			prev_state = Working;
 			break;
 		}
 		case(Stop):
@@ -235,6 +352,7 @@ int main(void)
 			break;
 		}
 	}
+
 
 
 	  if(new_data)
@@ -276,6 +394,7 @@ int main(void)
 
 
   }
+
   /* USER CODE END 3 */
 }
 

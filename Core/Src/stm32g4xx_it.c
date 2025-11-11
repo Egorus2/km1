@@ -57,6 +57,8 @@ extern volatile uint32_t motor_last_tick;
 extern bool new_data;
 extern uint16_t downcounter;
 volatile uint8_t last_state = 0;
+extern bool limit_flag_1;
+extern bool limit_flag_2;
 
 /* USER CODE END PV */
 
@@ -445,13 +447,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	if(GPIO_Pin == GPIO_PIN_13)
 	{
-		char msg = 'A'; // символ для отправки
-		HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
+		limit_flag_1 = !limit_flag_1;
+		//char msg = 'A'; // символ для отправки
+		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
 	}
 	else if(GPIO_Pin == GPIO_PIN_14)
 	{
-		char msg1 = 'B'; // символ для отправки
-		HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+		limit_flag_2 = !limit_flag_2;
+		//char msg1 = 'B'; // символ для отправки
+		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
 	}
 
 	new_data = true;
