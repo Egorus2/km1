@@ -29,6 +29,8 @@
 #include <string.h>
 
 #include "hx711.h"
+#include "mb.h"
+#include "mbport.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -169,56 +171,65 @@ int32_t Motor_Encoder_GetRPM(void)
   * @brief  The application entry point.
   * @retval int
   */
+/*
+#define SLAVE_ADDR  1
 
+eMBErrorCode eStatus;
 
+void Motor_SetCurrent(uint16_t current_10mA)
+{
+    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x0191, current_10mA, -1);
+}
 
-void Modbus_WriteRegister(uint8_t slave, uint16_t reg_addr, uint16_t value) {
-    uint8_t tx[8];
-    tx[0] = slave;
-    tx[1] = MODBUS_FUNC_WRITE_REG;
-    tx[2] = reg_addr >> 8;
-    tx[3] = reg_addr & 0xFF;
-    tx[4] = value >> 8;
-    tx[5] = value & 0xFF;
-    uint16_t crc = Modbus_CRC16(tx, 6);
-    tx[6] = crc & 0xFF;
-    tx[7] = crc >> 8;
+void Motor_SetSpeed(uint16_t rpm)
+{
+    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x01E1, rpm, -1);
+}
 
-    HAL_UART_Transmit(&huart3, tx, 8, 100);
-    HAL_Delay(10); // небольшая пауза
+void Motor_RunForward(void)
+{
+    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x4001, -1);
+}
+
+void Motor_RunBackward(void)
+{
+    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x4002, -1);
+}
+
+void Motor_Stop(void)
+{
+    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x0400, -1);
+}
+*/
+
+void RS485_Send(uint8_t *data, uint16_t size)
+{
+    // Включаем передачу (DE = 1)
+    HAL_GPIO_WritePin(RS485_DE_GPIO_Port, RS485_DE_Pin, GPIO_PIN_SET);
+    HAL_UART_Transmit(&huart3, data, size, HAL_MAX_DELAY);
+    // Возвращаем в приём (DE = 0)
+    HAL_GPIO_WritePin(RS485_DE_GPIO_Port, RS485_DE_Pin, GPIO_PIN_RESET);
 }
 
 
-void Motor_Test(void) {
-    // Установка тока и скорости
-    Modbus_WriteRegister(SLAVE_ID, 0x0191, 20);   // ток 2.0A
-    HAL_Delay(50);
-    Modbus_WriteRegister(SLAVE_ID, 0x01E1, 200);  // скорость 200 rpm
-    HAL_Delay(50);
-
-    // Вперёд
-    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x4001);
-    HAL_Delay(3000);
-
-    // Назад
-    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x4002);
-    HAL_Delay(3000);
-
-    // Стоп
-    Modbus_WriteRegister(SLAVE_ID, 0x1801, 0x0400);
-}
 
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+    uint8_t test_frame[] = {0x55, 0xAA, 0x01, 0x06, 0x00, 0x00, 0x12, 0x34};
+    while(1)
+    {
+        RS485_Send(test_frame, sizeof(test_frame));
+        HAL_Delay(1000); // Отправка раз в секунду
+    }
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
 
   /* USER CODE BEGIN Init */
 
@@ -262,16 +273,33 @@ int main(void)
 
   HAL_Delay(500);
 
-  Motor_Test();
+/*
+  // Инициализация Modbus Master RTU
+  eMBInit(MB_RTU, 0x01, 1, 38400, MB_PAR_NONE);
+  eMBEnable();
 
+  // Установка параметров
+  Motor_SetCurrent(20);   // 2.0 A
+  Motor_SetSpeed(200);    // 200 rpm
 
+  // Запуск вперёд
+  Motor_RunForward();
+  HAL_Delay(3000);
 
+  // Назад
+  Motor_RunBackward();
+  HAL_Delay(3000);
+
+  // Стоп
+  Motor_Stop();
+*/
+/*
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
+  /*
 	switch(state)
 	{
 		case(Initialization):
@@ -308,7 +336,7 @@ int main(void)
 			 * opt_lim_1 = 0;
 			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
 			 * position = encoder_position - opt_lim_1;
-			 */
+			 *//*
 			while(position > set_default_position)
 			{
 				//короткий jog мотора в сторону концевика 1
