@@ -9,6 +9,13 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include modbus/tcp/subdir.mk
+-include modbus/rtu/subdir.mk
+-include modbus/functions/subdir.mk
+-include modbus/ascii/subdir.mk
+-include modbus/BARE/port/subdir.mk
+-include modbus/BARE/subdir.mk
+-include modbus/subdir.mk
 -include Drivers/STM32G4xx_HAL_Driver/Src/subdir.mk
 -include Drivers/HX711/subdir.mk
 -include Core/Startup/subdir.mk
@@ -85,8 +92,8 @@ all: main-build
 main-build: KL_KMStand.elf secondary-outputs
 
 # Tool invocations
-KL_KMStand.elf KL_KMStand.map: $(OBJS) $(USER_OBJS) C:\Users\user\STM32CubeIDE\workspace_1.18.1\KL_KMStand\STM32G473VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-g++ -o "KL_KMStand.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\user\STM32CubeIDE\workspace_1.18.1\KL_KMStand\STM32G473VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="KL_KMStand.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+KL_KMStand.elf KL_KMStand.map: $(OBJS) $(USER_OBJS) C:\Users\AndreyChuev\Desktop\KMStand\kmstand\STM32G473VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-g++ -o "KL_KMStand.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\AndreyChuev\Desktop\KMStand\kmstand\STM32G473VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="KL_KMStand.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

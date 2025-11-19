@@ -1,0 +1,9 @@
+../Core/Src/device.c:44:6:Encoder_Init	8	static
+../Core/Src/device.c:56:6:Encoder_UpdateRPM	24	static
+../Core/Src/device.c:77:9:Encoder_GetPosition	4	static
+../Core/Src/device.c:82:9:Encoder_GetRPM	4	static
+../Core/Src/device.c:87:9:Motor_Encoder_GetPosition	4	static
+../Core/Src/device.c:92:9:Motor_Encoder_GetRPM	4	static
+../Core/Src/device.c:98:10:CRC16	24	static
+../Core/Src/device.c:118:6:modbus_send_simple	32	static
+../Core/Src/device.c:138:6:Motor_Move	24	static

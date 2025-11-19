@@ -1,0 +1,4 @@
+../modbus/BARE/demo.c:37:1:eMBRegInputCB	4
+../modbus/BARE/demo.c:65:1:eMBRegHoldingCB	1
+../modbus/BARE/demo.c:73:1:eMBRegCoilsCB	1
+../modbus/BARE/demo.c:80:1:eMBRegDiscreteCB	1

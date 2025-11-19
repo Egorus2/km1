@@ -42,4 +42,11 @@ Core/Src \
 Core/Startup \
 Drivers/HX711 \
 Drivers/STM32G4xx_HAL_Driver/Src \
+modbus/BARE \
+modbus/BARE/port \
+modbus/ascii \
+modbus/functions \
+modbus \
+modbus/rtu \
+modbus/tcp \
 

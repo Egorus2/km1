@@ -18,9 +18,18 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "spi.h"
+#include "tim.h"
+#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <device.h>
+#include <stdbool.h>
+#include <string.h>
+#include "mb.h"
+#include "mbport.h"
 #include "hx711.h"
 /* USER CODE END Includes */
 
@@ -31,7 +40,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define UART_START_BYTE 0xFE
+#define UART_STOP_BYTE 0xFF
+#define UART_TX_BUF_LEN 3 + sizeof(uint32_t) + sizeof(long int)
 
+#define SLAVE_ID    1
+#define MODBUS_FUNC_WRITE_REG  0x06
+#define SLAVE_ADDR  1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -40,11 +55,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi3;
-
-UART_HandleTypeDef huart5;
-UART_HandleTypeDef huart1;
-UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -52,17 +62,75 @@ UART_HandleTypeDef huart3;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_SPI3_Init(void);
-static void MX_UART5_Init(void);
-static void MX_USART3_UART_Init(void);
-static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 hx711_t hx711_handle;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+extern volatile long int optical_count;
+extern volatile bool new_data;
+extern volatile int32_t encoder_position;  // текущая позиция энкодера
+extern volatile int32_t last_position;     // позиция на предыдущем измерении
+extern volatile float encoder_rpm;      // скорость вращения
+extern volatile uint32_t last_tick;
+extern volatile int32_t motor_encoder_position;  // текущая позиция энкодера
+extern volatile int32_t motor_last_position;     // позиция на предыдущем измерении
+extern volatile float motor_encoder_rpm;      // скорость вращения
+extern volatile uint32_t motor_last_tick;
+
+
+//Основные переменные характеризующие состояние стенда
+extern volatile int opt_lim_1;// пределы шкалы оптической линейки
+extern volatile int opt_lim_2;
+extern volatile bool limit_flag_1;//флаги срабатывания концевиков
+extern volatile bool limit_flag_2;
+
+extern float tenso_data;//текущая нагрузка
+extern float set_tenso_data;//заданная требуемая нагрузка
+
+extern float velocity;//текущая скорость
+extern float set_velocity;//заданная тремуемая скорость
+
+extern float position;//текущая позиция
+extern float set_default_position;//заданное нулевое положение
+
+extern float angle; //текущий угол
+extern float set_angle; //заданное значение угла
+
+int state = 0;
+int prev_state = 0;
+int step = 1;
+int amplitude;
+int angle_amplitude;
+int regime;
+int direction;
+int count = 0;
+int pull_number;
+int set_current;
+
+
+enum states
+{
+	Initialization = 0x00,
+	Calibration = 0x01,
+	MODE1_CONFIG = 0x10,
+	MODE1_START = 0x11,
+	MODE1_STOP = 0x12,
+	MODE2_CONFIG = 0x20,
+	MODE2_START = 0x21,
+	MODE2_STOP = 0x22,
+	MODE3_CONFIG = 0x30,
+	MODE3_START = 0x31,
+	MODE3_STOP = 0x32,
+	ACK = 0x33,
+	STREAM_DATA = 0x40
+};
+
+
+
+
+
 
 /* USER CODE END 0 */
 
@@ -99,18 +167,288 @@ int main(void)
   MX_UART5_Init();
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+
+  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  eMBEnable();
+  HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+/*
+  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  eMBEnable();
+  modbus_send_simple(1, 0x0191, 20);    // Ток
+  HAL_Delay(100);
+  modbus_send_simple(1, 0x01E1, 200);   // Скорость
+  HAL_Delay(100);
+  modbus_send_simple(1, 0x1801, 0x4001); // Вперед
+  HAL_Delay(3000);
+  modbus_send_simple(1, 0x1801, 0x4002); // Назад
+  HAL_Delay(3000);
+  modbus_send_simple(1, 0x1801, 0x0400); // Стоп
+*/
   hx711_init(&hx711_handle, HX711_CLK_GPIO_Port, HX711_CLK_Pin, HX711_DOUT_GPIO_Port, HX711_DOUT_Pin);
+  hx711_coef_set(&hx711_handle, 354.5); // read afer calibration
+  hx711_tare(&hx711_handle, 10);
+
+
+  uint8_t tx_buffer [UART_TX_BUF_LEN] = {0};
+  tx_buffer[0] = UART_START_BYTE;
+  tx_buffer[UART_TX_BUF_LEN - 2] = UART_STOP_BYTE;
+  tx_buffer[UART_TX_BUF_LEN - 1] = (uint8_t)'\n';
+
+
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
+  HAL_Delay(500);
+
+
+
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+	eMBPoll();
+
+
+	switch(state)
+	{
+		case(Initialization):
+		{
+			//Добавить ввод данных(Режим работы, скорость, усилие)
+			//Добавить вывод всех данных
+			//set_tenso_data = ;
+			//set_default_position = ;
+			//set_velocity = ;
+			//set_angle = ;
+			//amplitude = ;
+			//regime =;
+			Encoder_Init();
+			state = Calibration;
+			prev_state = Initialization;
+			break;
+		}
+		case(Calibration):
+		{
+			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
+			while(limit_flag_1 = 0)
+			{
+				Motor_Move(set_current, set_velocity, step, 1);
+			}
+			opt_lim_1 = optical_count;
+			Motor_Move(set_current, set_velocity, step, -1);
+			while(limit_flag_2 = 0)
+			{
+				Motor_Move(set_current, set_velocity, step, -1);
+			}
+			opt_lim_2 = optical_count;
+			Motor_Move(set_current, set_velocity, step, 1);
+
+			//если нужна нормировка шкалы [0, ...]
+			/*
+			 * opt_lim_1 = 0;
+			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
+			 * position = encoder_position - opt_lim_1;
+			 */
+			while(position > set_default_position)
+			{
+				Motor_Move(set_current, set_velocity, step, 1);
+				position = optical_count;
+
+			}
+			state = regime;
+			prev_state = Calibration;
+			break;
+		}
+		/*case(Working):
+		{
+			while(limit_flag_1 || limit_flag_2 != 1)
+			{
+				if (regime = 1)//сжатие до обеспечения заданной нагрузки
+				{
+				//сжатие до обеспечения заданной нагрузки
+					//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+					tenso_data = hx711_value(&hx711_handle);
+					while(tenso_data < set_tenso_data)
+					{
+						Motor_Move(set_current, set_velocity, step, 1);
+						tenso_data = hx711_value(&hx711_handle);
+					}
+				}
+				if (regime = 2)//колебания с заданой скоростью и амплитудой
+				{
+					position = optical_count;
+
+					while(true)
+					{
+						direction = 1;
+						Motor_Move(set_current, set_velocity, step, direction);
+						position = optical_count;
+						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+						{
+							direction = -direction;
+						}
+					}
+				}
+
+			}
+			state = Stop;
+			prev_state = Working;
+			break;
+		}
+
+*/
+		case(MODE1_CONFIG):
+		{
+
+			break;
+		}
+		case(MODE1_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			position = optical_count;
+			count = 0;
+			direction = 1;
+
+			while(count < 2*pull_number)
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				position = optical_count;
+				if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+				{
+					direction = -direction;
+					count ++;
+				}
+			}
+			Motor_Move(set_current, set_velocity, amplitude, direction);//возвращение в начальное положение
+			state = MODE1_STOP;
+			prev_state = MODE1_START;
+			break;
+		}
+		case(MODE1_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(MODE2_CONFIG):
+		{
+
+			break;
+		}
+		case(MODE2_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			angle = encoder_position;
+			count = 0;
+			direction = 1;
+			while(count < 2*pull_number)
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				angle = encoder_position;
+				if ((set_angle - angle)*(set_angle - angle) > angle_amplitude*angle_amplitude)
+				{
+					direction = -direction;
+					count ++;
+				}
+			}
+			while(angle < set_angle)//возвращение в начальное положение
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				angle = encoder_position;
+			}
+
+			state = MODE2_STOP;
+			prev_state = MODE2_START;
+			break;
+		}
+		case(MODE2_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(MODE3_CONFIG):
+		{
+
+			break;
+		}
+		case(MODE3_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			//сжатие до обеспечения заданной нагрузки
+			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+			tenso_data = hx711_value(&hx711_handle);
+			while(tenso_data < set_tenso_data)
+			{
+				Motor_Move(set_current, set_velocity, step, 1);
+				tenso_data = hx711_value(&hx711_handle);
+			}
+			state = MODE3_STOP;
+			prev_state = MODE3_START;
+			break;
+		}
+
+		case(MODE3_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(ACK):
+		{
+
+			break;
+		}
+		case(STREAM_DATA):
+		{
+
+			break;
+		}
+	}
+
+
+
+	  if(new_data)
+	  {
+
+
+	      long int optical_count_buf = optical_count;
+	      char buffer3[64];
+	      int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld\n", optical_count_buf);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+
+
+	      //memcpy(tx_buffer + 1 + sizeof(uint32_t), &optical_count_buf, sizeof(long int));
+	      //HAL_UART_Transmit(&huart1, tx_buffer, UART_TX_BUF_LEN, HAL_MAX_DELAY);
+
+
+		  //HAL_Delay(1000);
+		  //uint32_t tenso_data = (uint32_t) hx711_value(&hx711_handle);
+		  //memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
+		  //HAL_UART_Transmit_IT(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer));
+		  //HAL_Delay(1000);
+
+
+		  Encoder_UpdateRPM();
+		  char buffer1[64];
+		  char buffer2[64];
+		  int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+		  int len1 = snprintf(buffer2, sizeof(buffer2), "Motor_Pos: %ld, Motor_RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
+		  HAL_Delay(100);
+		  new_data = false;
+	  }
+
+
   }
+
   /* USER CODE END 3 */
 }
 
@@ -154,244 +492,6 @@ void SystemClock_Config(void)
   }
 }
 
-/**
-  * @brief SPI3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI3_Init(void)
-{
-
-  /* USER CODE BEGIN SPI3_Init 0 */
-
-  /* USER CODE END SPI3_Init 0 */
-
-  /* USER CODE BEGIN SPI3_Init 1 */
-
-  /* USER CODE END SPI3_Init 1 */
-  /* SPI3 parameter configuration*/
-  hspi3.Instance = SPI3;
-  hspi3.Init.Mode = SPI_MODE_MASTER;
-  hspi3.Init.Direction = SPI_DIRECTION_2LINES_RXONLY;
-  hspi3.Init.DataSize = SPI_DATASIZE_4BIT;
-  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi3.Init.CRCPolynomial = 7;
-  hspi3.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi3.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  if (HAL_SPI_Init(&hspi3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI3_Init 2 */
-
-  /* USER CODE END SPI3_Init 2 */
-
-}
-
-/**
-  * @brief UART5 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_UART5_Init(void)
-{
-
-  /* USER CODE BEGIN UART5_Init 0 */
-
-  /* USER CODE END UART5_Init 0 */
-
-  /* USER CODE BEGIN UART5_Init 1 */
-
-  /* USER CODE END UART5_Init 1 */
-  huart5.Instance = UART5;
-  huart5.Init.BaudRate = 115200;
-  huart5.Init.WordLength = UART_WORDLENGTH_8B;
-  huart5.Init.StopBits = UART_STOPBITS_1;
-  huart5.Init.Parity = UART_PARITY_NONE;
-  huart5.Init.Mode = UART_MODE_TX_RX;
-  huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart5.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart5.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart5.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart5.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart5, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart5, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart5) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN UART5_Init 2 */
-
-  /* USER CODE END UART5_Init 2 */
-
-}
-
-/**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart3.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_RS485Ex_Init(&huart3, UART_DE_POLARITY_HIGH, 0, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetTxFifoThreshold(&huart3, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_SetRxFifoThreshold(&huart3, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_UARTEx_DisableFifoMode(&huart3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-
-  /* USER CODE END MX_GPIO_Init_1 */
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : MOTOR_BREAK_Pin */
-  GPIO_InitStruct.Pin = MOTOR_BREAK_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MOTOR_BREAK_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MOTOR_ENC_B_ITR9_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENC_B_ITR9_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(MOTOR_ENC_B_ITR9_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_Pin ENC_A_ITR0_Pin ENC_B_ITR1_Pin OPT_LINEAR_Z_ITR5_Pin
-                           OPT_LINEAR_B_ITR6_Pin OPT_LINEAR_A_ITR7_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_Pin|ENC_A_ITR0_Pin|ENC_B_ITR1_Pin|OPT_LINEAR_Z_ITR5_Pin
-                          |OPT_LINEAR_B_ITR6_Pin|OPT_LINEAR_A_ITR7_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : ENC_Z_ITR12_Pin */
-  GPIO_InitStruct.Pin = ENC_Z_ITR12_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(ENC_Z_ITR12_GPIO_Port, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
-}
-
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
@@ -410,8 +510,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.

@@ -22,6 +22,11 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
+#include <string.h>
+#include "port.h"
+#include "device.h"
+extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +46,21 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+extern long int optical_count;
+extern int32_t encoder_position;  // текущая позиция энкодера
+extern volatile int32_t last_position;     // позиция на предыдущем измерении
+extern volatile float encoder_rpm;      // скорость вращения
+extern volatile uint32_t last_tick;
+extern int32_t motor_encoder_position;  // текущая позиция энкодера
+extern volatile int32_t motor_last_position;     // позиция на предыдущем измерении
+extern volatile float motor_encoder_rpm;      // скорость вращения
+extern volatile uint32_t motor_last_tick;
+extern bool new_data;
+extern uint16_t downcounter;
+volatile uint8_t encoder_last_state = 0;
+volatile uint8_t motor_encoder_last_state = 0;
+extern bool limit_flag_1;
+extern bool limit_flag_2;
 
 /* USER CODE END PV */
 
@@ -55,7 +75,10 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern TIM_HandleTypeDef htim4;
+extern UART_HandleTypeDef huart5;
+extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart3;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -198,6 +221,244 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32g4xx.s).                    */
 /******************************************************************************/
 
-/* USER CODE BEGIN 1 */
+/**
+  * @brief This function handles EXTI line0 interrupt.
+  */
+void EXTI0_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI0_IRQn 0 */
+  /* USER CODE END EXTI0_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(ENC_A_ITR0_Pin);
+  /* USER CODE BEGIN EXTI0_IRQn 1 */
 
+  /* USER CODE END EXTI0_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line1 interrupt.
+  */
+void EXTI1_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI1_IRQn 0 */
+  /* USER CODE END EXTI1_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(ENC_B_ITR1_Pin);
+  /* USER CODE BEGIN EXTI1_IRQn 1 */
+
+  /* USER CODE END EXTI1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line3 interrupt.
+  */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
+
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_Pin);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+
+  /* USER CODE END EXTI3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(OPT_LINEAR_Z_ITR5_Pin);
+  HAL_GPIO_EXTI_IRQHandler(OPT_LINEAR_B_ITR6_Pin);
+  HAL_GPIO_EXTI_IRQHandler(OPT_LINEAR_A_ITR7_Pin);
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_B_ITR9_Pin);
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+  GPIO_PinState first_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_A_ITR7_GPIO_Port, OPT_LINEAR_A_ITR7_Pin);
+  GPIO_PinState second_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_B_ITR6_GPIO_Port, OPT_LINEAR_B_ITR6_Pin);
+  GPIO_PinState zero_optical_signal = HAL_GPIO_ReadPin(OPT_LINEAR_Z_ITR5_GPIO_Port, OPT_LINEAR_Z_ITR5_Pin);
+
+
+
+    if (second_optical_signal == GPIO_PIN_SET)
+    {
+      optical_count++;
+    }
+    else
+    {
+      optical_count--;
+    }
+
+
+    if (first_optical_signal == GPIO_PIN_SET)
+    {
+      optical_count--;
+    }
+    else
+    {
+      optical_count++;
+    }
+
+  if (zero_optical_signal == GPIO_PIN_SET)
+  {
+    optical_count = 0;
+  }
+  new_data = true;
+
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM4 global interrupt.
+  */
+void TIM4_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM4_IRQn 0 */
+	/* TIM Update event */
+	if(__HAL_TIM_GET_FLAG(&htim4, TIM_FLAG_UPDATE) != RESET && __HAL_TIM_GET_IT_SOURCE(&htim4, TIM_IT_UPDATE) !=RESET) {
+		__HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
+		if (!--downcounter)
+			prvvTIMERExpiredISR();
+	}
+  /* USER CODE END TIM4_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim4);
+  /* USER CODE BEGIN TIM4_IRQn 1 */
+
+  /* USER CODE END TIM4_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt / USART1 wake-up interrupt through EXTI line 25.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART3 global interrupt / USART3 wake-up interrupt through EXTI line 28.
+  */
+void USART3_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART3_IRQn 0 */
+    if (FALSE != UART_IRQ_Handler(USART1))
+        return;
+  /* USER CODE END USART3_IRQn 0 */
+  HAL_UART_IRQHandler(&huart3);
+  /* USER CODE BEGIN USART3_IRQn 1 */
+
+  /* USER CODE END USART3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
+  HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
+/**
+  * @brief This function handles UART5 global interrupt / UART5 wake-up interrupt through EXTI line 35.
+  */
+void UART5_IRQHandler(void)
+{
+  /* USER CODE BEGIN UART5_IRQn 0 */
+
+  /* USER CODE END UART5_IRQn 0 */
+  HAL_UART_IRQHandler(&huart5);
+  /* USER CODE BEGIN UART5_IRQn 1 */
+
+  /* USER CODE END UART5_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	    uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
+	    uint8_t enc_b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
+	    uint8_t encoder_state = (enc_a << 1) | enc_b;
+
+	    uint8_t motor_enc_a = HAL_GPIO_ReadPin(MOTOR_ENC_A_ITR11_GPIO_Port, MOTOR_ENC_A_ITR11_Pin);
+	    uint8_t motor_enc_b = HAL_GPIO_ReadPin(MOTOR_ENC_B_ITR9_GPIO_Port, MOTOR_ENC_B_ITR9_Pin);
+	    uint8_t motor_encoder_state = (motor_enc_a << 1) | motor_enc_b;
+
+	    if (GPIO_Pin == ENC_A_ITR0_Pin || GPIO_Pin == ENC_B_ITR1_Pin)
+	    {
+	        // таблица направлений (Gray code)
+	        if ((encoder_last_state == 0b00 && encoder_state == 0b01) ||
+	            (encoder_last_state == 0b01 && encoder_state == 0b11) ||
+	            (encoder_last_state == 0b11 && encoder_state == 0b10) ||
+	            (encoder_last_state == 0b10 && encoder_state == 0b00))
+	        {
+	            encoder_position++;
+	        }
+	        else if ((encoder_last_state == 0b00 && encoder_state == 0b10) ||
+	                 (encoder_last_state == 0b10 && encoder_state == 0b11) ||
+	                 (encoder_last_state == 0b11 && encoder_state == 0b01) ||
+	                 (encoder_last_state == 0b01 && encoder_state == 0b00))
+	        {
+	            encoder_position--;
+	        }
+	        encoder_last_state = encoder_state;
+	    }
+
+
+	    if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
+	    {
+	    	// таблица направлений (Gray code)
+	    	if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b01) ||
+	            (motor_encoder_last_state == 0b01 && motor_encoder_state == 0b11) ||
+	   	        (motor_encoder_last_state == 0b11 && motor_encoder_state == 0b10) ||
+	            (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b00))
+	   	    {
+	    		motor_encoder_position++;
+	   	    }
+	   	    else if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b10) ||
+	    	         (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b11) ||
+	                 (motor_encoder_last_state == 0b11 && motor_encoder_state == 0b01) ||
+	                 (motor_encoder_last_state == 0b01 && motor_encoder_state == 0b00))
+	    	{
+	   	    	motor_encoder_position--;
+	    	}
+	    	motor_encoder_last_state = motor_encoder_state;
+	    }
+
+    if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
+    {
+        //encoder_position = 0; // сброс позиции на индекс
+    }
+
+
+	if(GPIO_Pin == GPIO_PIN_13)
+	{
+		limit_flag_1 = !limit_flag_1;
+		//char msg = 'A'; // символ для отправки
+		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
+	}
+	else if(GPIO_Pin == GPIO_PIN_14)
+	{
+		limit_flag_2 = !limit_flag_2;
+		//char msg1 = 'B'; // символ для отправки
+		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+	}
+
+	new_data = true;
+}
 /* USER CODE END 1 */

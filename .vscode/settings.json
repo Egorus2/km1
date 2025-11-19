@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "mbconfig.h": "c",
+        "mb.h": "c",
+        "port.h": "c"
+    }
+}
