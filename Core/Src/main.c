@@ -31,6 +31,8 @@
 #include "mb.h"
 #include "mbport.h"
 #include "hx711.h"
+#include "parser.h"
+//#include
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -128,7 +130,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+ uint8_t data []= {1,1,1};
+ send_uart_packet(0x00, data, 3, &huart1);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -199,7 +202,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	//uint8_t * data = new(10);
     /* USER CODE BEGIN 3 */
 
 	eMBPoll();
@@ -227,16 +230,16 @@ int main(void)
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
 			while(limit_flag_1 = 0)
 			{
-				Motor_Move(set_velocity, step, 1);
+				//Motor_Move(set_velocity, step, 1);
 			}
 			opt_lim_1 = optical_count;
-			Motor_Move(set_velocity, step, -1);
+			//Motor_Move(set_velocity, step, -1);
 			while(limit_flag_2 = 0)
 			{
-				Motor_Move(set_velocity, step, -1);
+				//Motor_Move(set_velocity, step, -1);
 			}
 			opt_lim_2 = optical_count;
-			Motor_Move(set_velocity, step, 1);
+			//Motor_Move(set_velocity, step, 1);
 
 			//если нужна нормировка шкалы [0, ...]
 			/*
@@ -246,7 +249,7 @@ int main(void)
 			 */
 			while(position > set_default_position)
 			{
-				Motor_Move(set_velocity, step, 1);
+				//Motor_Move(set_velocity, step, 1);
 				position = optical_count;
 
 			}
@@ -266,7 +269,7 @@ int main(void)
 					tenso_data = hx711_value(&hx711_handle);
 					while(tenso_data < set_tenso_data)
 					{
-						Motor_Move(set_velocity, step, 1);
+						//Motor_Move(set_velocity, step, 1);
 						tenso_data = hx711_value(&hx711_handle);
 					}
 				}
@@ -276,12 +279,12 @@ int main(void)
 
 					while(true)
 					{
-						direction = 1;
-						Motor_Move(set_velocity, step, direction);
+						//direction = 1;
+						//Motor_Move(set_velocity, step, direction);
 						position = optical_count;
 						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
 						{
-							direction = -direction;
+							//direction = -direction;
 						}
 					}
 				}

@@ -100,6 +100,9 @@ extern float set_angle; //заданное значение угла
 
 int state = 0;
 int prev_state = 0;
+int step = 1;
+int amplitude;
+int regime;
 
 enum states
 {
@@ -153,6 +156,8 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
+  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  eMBEnable();
   HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
 /*
   eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
@@ -199,7 +204,7 @@ int main(void)
 
 	eMBPoll();
 
-  /*
+
 	switch(state)
 	{
 		case(Initialization):
@@ -210,6 +215,8 @@ int main(void)
 			//set_default_position = ;
 			//set_velocity = ;
 			//set_angle = ;
+			//amplitude = ;
+			//regime =;
 			Encoder_Init();
 			state = Calibration;
 			prev_state = Initialization;
@@ -220,27 +227,27 @@ int main(void)
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
 			while(limit_flag_1 = 0)
 			{
-				//движение мотора в сторону концевика 1
+				Motor_Move(set_velocity, step, 1);
 			}
 			opt_lim_1 = optical_count;
-			//короткий jog мотора в сторону концевика 2
+			Motor_Move(set_velocity, step, -1);
 			while(limit_flag_2 = 0)
 			{
-				//движение мотора в сторону концевика 2
+				Motor_Move(set_velocity, step, -1);
 			}
 			opt_lim_2 = optical_count;
-			//короткий jog мотора в сторону концевика 2
+			Motor_Move(set_velocity, step, 1);
 
 			//если нужна нормировка шкалы [0, ...]
 			/*
 			 * opt_lim_1 = 0;
 			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
 			 * position = encoder_position - opt_lim_1;
-			 *//*
+			 */
 			while(position > set_default_position)
 			{
-				//короткий jog мотора в сторону концевика 1
-				position = encoder_position;
+				Motor_Move(set_velocity, step, 1);
+				position = optical_count;
 
 			}
 
@@ -250,20 +257,35 @@ int main(void)
 		}
 		case(Working):
 		{
-			//сжатие до обеспечения заданной нагрузки
-			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
-			tenso_data = hx711_value(&hx711_handle);
-			while(tenso_data < set_tenso_data)
+			while(limit_flag_1 || limit_flag_2 != 1)
 			{
-				//которкий jog мотора в направлении сжатия/растяжения(в зависимости от режима)
-				tenso_data = hx711_value(&hx711_handle);
-
-				if (limit_flag_1 || limit_flag_2 = 1)
+				if (regime = 1)//сжатие до обеспечения заданной нагрузки
 				{
-					state = Emergency_stop;
-					prev_state = Working;
-					break;
+				//сжатие до обеспечения заданной нагрузки
+					//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+					tenso_data = hx711_value(&hx711_handle);
+					while(tenso_data < set_tenso_data)
+					{
+						Motor_Move(set_velocity, step, 1);
+						tenso_data = hx711_value(&hx711_handle);
+					}
 				}
+				if (regime = 2)//колебания с заданой скоростью и амплитудой
+				{
+					position = optical_count;
+
+					while(true)
+					{
+						direction = 1;
+						Motor_Move(set_velocity, step, direction);
+						position = optical_count;
+						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+						{
+							direction = -direction;
+						}
+					}
+				}
+
 			}
 			state = Stop;
 			prev_state = Working;
@@ -282,7 +304,7 @@ int main(void)
 	}
 
 
-*/
+
 	  if(new_data)
 	  {
 
