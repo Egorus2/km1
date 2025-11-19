@@ -1,0 +1,18 @@
+# Объектные файлы
+Debug/**/*.o
+Debug/**/*.obj
+
+# ELF и бинарники
+Debug/**/*.elf
+Debug/**/*.map
+Debug/**/*.list
+
+# Файлы проекта CubeIDE
+Debug/**/*.su
+Debug/**/*.cyclo
+
+# Локальные резервные файлы
+*.orig
+
+# Иногда можно игнорировать весь Debug
+Debug/

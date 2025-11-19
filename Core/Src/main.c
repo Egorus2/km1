@@ -104,15 +104,29 @@ int state = 0;
 int prev_state = 0;
 int step = 1;
 int amplitude;
+int angle_amplitude;
 int regime;
+int direction;
+int count = 0;
+int pull_number;
+int set_current;
+
 
 enum states
 {
-	Initialization = 0,
-	Calibration = 10,
-	Working = 20,
-	Stop = 30,
-	Emergency_stop = 40
+	Initialization = 0x00,
+	Calibration = 0x01,
+	MODE1_CONFIG = 0x10,
+	MODE1_START = 0x11,
+	MODE1_STOP = 0x12,
+	MODE2_CONFIG = 0x20,
+	MODE2_START = 0x21,
+	MODE2_STOP = 0x22,
+	MODE3_CONFIG = 0x30,
+	MODE3_START = 0x31,
+	MODE3_STOP = 0x32,
+	ACK = 0x33,
+	STREAM_DATA = 0x40
 };
 
 
@@ -230,16 +244,16 @@ int main(void)
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
 			while(limit_flag_1 = 0)
 			{
-				//Motor_Move(set_velocity, step, 1);
+				Motor_Move(set_current, set_velocity, step, 1);
 			}
 			opt_lim_1 = optical_count;
-			//Motor_Move(set_velocity, step, -1);
+			Motor_Move(set_current, set_velocity, step, -1);
 			while(limit_flag_2 = 0)
 			{
-				//Motor_Move(set_velocity, step, -1);
+				Motor_Move(set_current, set_velocity, step, -1);
 			}
 			opt_lim_2 = optical_count;
-			//Motor_Move(set_velocity, step, 1);
+			Motor_Move(set_current, set_velocity, step, 1);
 
 			//если нужна нормировка шкалы [0, ...]
 			/*
@@ -249,16 +263,15 @@ int main(void)
 			 */
 			while(position > set_default_position)
 			{
-				//Motor_Move(set_velocity, step, 1);
+				Motor_Move(set_current, set_velocity, step, 1);
 				position = optical_count;
 
 			}
-
-			state = Working;
+			state = regime;
 			prev_state = Calibration;
 			break;
 		}
-		case(Working):
+		/*case(Working):
 		{
 			while(limit_flag_1 || limit_flag_2 != 1)
 			{
@@ -269,7 +282,6 @@ int main(void)
 					tenso_data = hx711_value(&hx711_handle);
 					while(tenso_data < set_tenso_data)
 					{
-						//Motor_Move(set_velocity, step, 1);
 						tenso_data = hx711_value(&hx711_handle);
 					}
 				}
@@ -279,8 +291,8 @@ int main(void)
 
 					while(true)
 					{
-						//direction = 1;
-						//Motor_Move(set_velocity, step, direction);
+						direction = 1;
+						Motor_Move(set_current, set_velocity, step, direction);
 						position = optical_count;
 						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
 						{
@@ -294,12 +306,108 @@ int main(void)
 			prev_state = Working;
 			break;
 		}
-		case(Stop):
+
+*/
+		case(MODE1_CONFIG):
 		{
 
 			break;
 		}
-		case(Emergency_stop):
+		case(MODE1_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			position = optical_count;
+			count = 0;
+			direction = 1;
+
+			while(count < 2*pull_number)
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				position = optical_count;
+				if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+				{
+					direction = -direction;
+					count ++;
+				}
+			}
+			Motor_Move(set_current, set_velocity, amplitude, direction);//возвращение в начальное положение
+			state = MODE1_STOP;
+			prev_state = MODE1_START;
+			break;
+		}
+		case(MODE1_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(MODE2_CONFIG):
+		{
+
+			break;
+		}
+		case(MODE2_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			angle = encoder_position;
+			count = 0;
+			direction = 1;
+			while(count < 2*pull_number)
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				angle = encoder_position;
+				if ((set_angle - angle)*(set_angle - angle) > angle_amplitude*angle_amplitude)
+				{
+					direction = -direction;
+					count ++;
+				}
+			}
+			while(angle < set_angle)//возвращение в начальное положение
+			{
+				Motor_Move(set_current, set_velocity, step, direction);
+				angle = encoder_position;
+			}
+
+			state = MODE2_STOP;
+			prev_state = MODE2_START;
+			break;
+		}
+		case(MODE2_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(MODE3_CONFIG):
+		{
+
+			break;
+		}
+		case(MODE3_START):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+			//сжатие до обеспечения заданной нагрузки
+			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+			tenso_data = hx711_value(&hx711_handle);
+			while(tenso_data < set_tenso_data)
+			{
+				Motor_Move(set_current, set_velocity, step, 1);
+				tenso_data = hx711_value(&hx711_handle);
+			}
+			state = MODE3_STOP;
+			prev_state = MODE3_START;
+			break;
+		}
+
+		case(MODE3_STOP):
+		{
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			break;
+		}
+		case(ACK):
+		{
+
+			break;
+		}
+		case(STREAM_DATA):
 		{
 
 			break;

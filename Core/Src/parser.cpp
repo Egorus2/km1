@@ -38,6 +38,12 @@ public:
 	{
 		crc = crc16_ccitt(d, l);
 	}
+
+	packet_t(uint8_t *d, uint8_t l)
+	{
+		crc = crc16_ccitt(d, l);
+	}
+
 	~packet_t()
 	{
 
@@ -62,6 +68,11 @@ public:
 		buff.push_back(static_cast <uint8_t> (end));
 		return buff;
 	}
+
+};
+
+class parser_t
+{
 
 };
 
