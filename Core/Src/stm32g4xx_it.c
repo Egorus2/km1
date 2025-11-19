@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "port.h"
+#include "device.h"
 extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
@@ -56,7 +57,8 @@ extern volatile float motor_encoder_rpm;      // скорость вращени
 extern volatile uint32_t motor_last_tick;
 extern bool new_data;
 extern uint16_t downcounter;
-volatile uint8_t last_state = 0;
+volatile uint8_t encoder_last_state = 0;
+volatile uint8_t motor_encoder_last_state = 0;
 extern bool limit_flag_1;
 extern bool limit_flag_2;
 
@@ -225,7 +227,6 @@ void SysTick_Handler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
-  new_data = true;
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(ENC_A_ITR0_Pin);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -244,6 +245,20 @@ void EXTI1_IRQHandler(void)
   /* USER CODE BEGIN EXTI1_IRQn 1 */
 
   /* USER CODE END EXTI1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line3 interrupt.
+  */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
+
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_Pin);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+
+  /* USER CODE END EXTI3_IRQn 1 */
 }
 
 /**
@@ -350,7 +365,7 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
   /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_Pin);
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
   HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
@@ -376,73 +391,59 @@ void UART5_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	    uint8_t a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
-	    uint8_t b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
-	    uint8_t state = (a << 1) | b;
+	    uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
+	    uint8_t enc_b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
+	    uint8_t encoder_state = (enc_a << 1) | enc_b;
+
+	    uint8_t motor_enc_a = HAL_GPIO_ReadPin(MOTOR_ENC_A_ITR11_GPIO_Port, MOTOR_ENC_A_ITR11_Pin);
+	    uint8_t motor_enc_b = HAL_GPIO_ReadPin(MOTOR_ENC_B_ITR9_GPIO_Port, MOTOR_ENC_B_ITR9_Pin);
+	    uint8_t motor_encoder_state = (motor_enc_a << 1) | motor_enc_b;
 
 	    if (GPIO_Pin == ENC_A_ITR0_Pin || GPIO_Pin == ENC_B_ITR1_Pin)
 	    {
 	        // таблица направлений (Gray code)
-	        if ((last_state == 0b00 && state == 0b01) ||
-	            (last_state == 0b01 && state == 0b11) ||
-	            (last_state == 0b11 && state == 0b10) ||
-	            (last_state == 0b10 && state == 0b00))
+	        if ((encoder_last_state == 0b00 && encoder_state == 0b01) ||
+	            (encoder_last_state == 0b01 && encoder_state == 0b11) ||
+	            (encoder_last_state == 0b11 && encoder_state == 0b10) ||
+	            (encoder_last_state == 0b10 && encoder_state == 0b00))
 	        {
 	            encoder_position++;
 	        }
-	        else if ((last_state == 0b00 && state == 0b10) ||
-	                 (last_state == 0b10 && state == 0b11) ||
-	                 (last_state == 0b11 && state == 0b01) ||
-	                 (last_state == 0b01 && state == 0b00))
+	        else if ((encoder_last_state == 0b00 && encoder_state == 0b10) ||
+	                 (encoder_last_state == 0b10 && encoder_state == 0b11) ||
+	                 (encoder_last_state == 0b11 && encoder_state == 0b01) ||
+	                 (encoder_last_state == 0b01 && encoder_state == 0b00))
 	        {
 	            encoder_position--;
 	        }
-	        last_state = state;
+	        encoder_last_state = encoder_state;
 	    }
-/*
-	if(GPIO_Pin == ENC_A_ITR0_Pin) // A
-    {
-        if(HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin) == GPIO_PIN_SET)
-        {
-            encoder_position++;  // вращение вперед
-			char msg1 = '+'; // символ для отправки
-			HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
-        }
-        else
-        {
-            encoder_position--;  // вращение назад
-			char msg1 = '-'; // символ для отправки
-			HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
-        }
-    }
-    //else if(GPIO_Pin == ENC_B_ITR1_Pin) // B (для x4 декодирования)
-    //{
-    //    if(HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin) == GPIO_PIN_SET)
-    //        encoder_position--;  // вращение назад
-    //    else
-    //        encoder_position++;  // вращение вперед
-    //}*/
+
+
+	    if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
+	    {
+	    	// таблица направлений (Gray code)
+	    	if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b01) ||
+	            (motor_encoder_last_state == 0b01 && motor_encoder_state == 0b11) ||
+	   	        (motor_encoder_last_state == 0b11 && motor_encoder_state == 0b10) ||
+	            (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b00))
+	   	    {
+	    		motor_encoder_position++;
+	   	    }
+	   	    else if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b10) ||
+	    	         (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b11) ||
+	                 (motor_encoder_last_state == 0b11 && motor_encoder_state == 0b01) ||
+	                 (motor_encoder_last_state == 0b01 && motor_encoder_state == 0b00))
+	    	{
+	   	    	motor_encoder_position--;
+	    	}
+	    	motor_encoder_last_state = motor_encoder_state;
+	    }
 
     if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
     {
-        encoder_position = 0; // сброс позиции на индекс
+        //encoder_position = 0; // сброс позиции на индекс
     }
-
-
-	/*if(GPIO_Pin == MOTOR_ENC_A_ITR11_Pin) // A
-		{
-	        if(HAL_GPIO_ReadPin(MOTOR_ENC_B_ITR9_GPIO_Port, MOTOR_ENC_B_ITR9_Pin) == GPIO_PIN_SET)
-	            motor_encoder_position++;  // вращение вперед
-	        else
-	            motor_encoder_position--;  // вращение назад
-	    }
-	    else if(GPIO_Pin == MOTOR_ENC_B_ITR9_Pin) // B (для x4 декодирования)
-	    {
-	        if(HAL_GPIO_ReadPin(MOTOR_ENC_A_ITR11_GPIO_Port, MOTOR_ENC_A_ITR11_Pin) == GPIO_PIN_SET)
-	            motor_encoder_position--;  // вращение назад
-	        else
-	            motor_encoder_position++;  // вращение вперед
-	    }*/
 
 
 	if(GPIO_Pin == GPIO_PIN_13)

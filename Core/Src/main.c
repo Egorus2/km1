@@ -25,12 +25,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <device.h>
 #include <stdbool.h>
 #include <string.h>
-
-#include "hx711.h"
 #include "mb.h"
 #include "mbport.h"
+#include "hx711.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,11 +43,10 @@
 #define UART_START_BYTE 0xFE
 #define UART_STOP_BYTE 0xFF
 #define UART_TX_BUF_LEN 3 + sizeof(uint32_t) + sizeof(long int)
-#define ENCODER_PPR 1000
-#define TIMER_PERIOD_MS 100
 
 #define SLAVE_ID    1
 #define MODBUS_FUNC_WRITE_REG  0x06
+#define SLAVE_ADDR  1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,38 +68,41 @@ hx711_t hx711_handle;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-volatile long int optical_count;
-volatile bool new_data = 0;
-volatile int32_t encoder_position = 0;  // текущая позиция энкодера
-volatile int32_t last_position = 0;     // позиция на предыдущем измерении
-volatile float encoder_rpm = 0.0f;      // скорость вращения
-volatile uint32_t last_tick = 0;
-volatile int32_t motor_encoder_position;  // текущая позиция энкодера
-volatile int32_t motor_last_position;     // позиция на предыдущем измерении
-volatile float motor_encoder_rpm;      // скорость вращения
-volatile uint32_t motor_last_tick;
+extern volatile long int optical_count;
+extern volatile bool new_data;
+extern volatile int32_t encoder_position;  // текущая позиция энкодера
+extern volatile int32_t last_position;     // позиция на предыдущем измерении
+extern volatile float encoder_rpm;      // скорость вращения
+extern volatile uint32_t last_tick;
+extern volatile int32_t motor_encoder_position;  // текущая позиция энкодера
+extern volatile int32_t motor_last_position;     // позиция на предыдущем измерении
+extern volatile float motor_encoder_rpm;      // скорость вращения
+extern volatile uint32_t motor_last_tick;
 
 
 //Основные переменные характеризующие состояние стенда
-volatile int opt_lim_1;// пределы шкалы оптической линейки
-volatile int opt_lim_2;
-volatile bool limit_flag_1 = 0;//флаги срабатывания концевиков
-volatile bool limit_flag_2 = 0;
+extern volatile int opt_lim_1;// пределы шкалы оптической линейки
+extern volatile int opt_lim_2;
+extern volatile bool limit_flag_1;//флаги срабатывания концевиков
+extern volatile bool limit_flag_2;
 
-float tenso_data;//текущая нагрузка
-float set_tenso_data;//заданная требуемая нагрузка
+extern float tenso_data;//текущая нагрузка
+extern float set_tenso_data;//заданная требуемая нагрузка
 
-float velocity;//текущая скорость
-float set_velocity;//заданная тремуемая скорость
+extern float velocity;//текущая скорость
+extern float set_velocity;//заданная тремуемая скорость
 
-float position;//текущая позиция
-float set_default_position;//заданное нулевое положение
+extern float position;//текущая позиция
+extern float set_default_position;//заданное нулевое положение
 
-float angle; //текущий угол
-float set_angle; //заданное значение угла
+extern float angle; //текущий угол
+extern float set_angle; //заданное значение угла
 
 int state = 0;
 int prev_state = 0;
+int step = 1;
+int amplitude;
+int regime;
 
 enum states
 {
@@ -112,58 +114,9 @@ enum states
 };
 
 
-void Encoder_Init(void)
-{
-    encoder_position = 0;
-    last_position = 0;
-    encoder_rpm = 0.0f;
-    last_tick = HAL_GetTick();
-    motor_encoder_position = 0;
-    motor_last_position = 0;
-    motor_encoder_rpm = 0.0f;
-    motor_last_tick = HAL_GetTick();
-}
 
-void Encoder_UpdateRPM(void)
-{
-    uint32_t current_tick = HAL_GetTick();
-    int32_t delta_pos = encoder_position - last_position;
 
-    // RPM = (Δимпульсы * 60000) / (PPR * Δt(ms))
-    encoder_rpm = (delta_pos * 60000.0f) / (ENCODER_PPR * (current_tick - last_tick));
 
-    last_position = encoder_position;
-    last_tick = current_tick;
-
-    uint32_t motor_current_tick = HAL_GetTick();
-    int32_t motor_delta_pos = motor_encoder_position - motor_last_position;
-
-    // RPM = (Δимпульсы * 60000) / (PPR * Δt(ms))
-    motor_encoder_rpm = (motor_delta_pos * 60000.0f) / (ENCODER_PPR * (motor_current_tick - motor_last_tick));
-
-    motor_last_position = motor_encoder_position;
-    motor_last_tick = motor_current_tick;
-}
-
-int32_t Encoder_GetPosition(void)
-{
-    return encoder_position;
-}
-
-int32_t Encoder_GetRPM(void)
-{
-    return encoder_rpm;
-}
-
-int32_t Motor_Encoder_GetPosition(void)
-{
-    return motor_encoder_position;
-}
-
-int32_t Motor_Encoder_GetRPM(void)
-{
-    return motor_encoder_rpm;
-}
 
 /* USER CODE END 0 */
 
@@ -171,65 +124,17 @@ int32_t Motor_Encoder_GetRPM(void)
   * @brief  The application entry point.
   * @retval int
   */
-/*
-#define SLAVE_ADDR  1
-
-eMBErrorCode eStatus;
-
-void Motor_SetCurrent(uint16_t current_10mA)
-{
-    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x0191, current_10mA, -1);
-}
-
-void Motor_SetSpeed(uint16_t rpm)
-{
-    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x01E1, rpm, -1);
-}
-
-void Motor_RunForward(void)
-{
-    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x4001, -1);
-}
-
-void Motor_RunBackward(void)
-{
-    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x4002, -1);
-}
-
-void Motor_Stop(void)
-{
-    eStatus = eMBMasterReqWriteHoldingRegister(SLAVE_ADDR, 0x1801, 0x0400, -1);
-}
-*/
-
-void RS485_Send(uint8_t *data, uint16_t size)
-{
-    // Включаем передачу (DE = 1)
-    HAL_GPIO_WritePin(RS485_DE_GPIO_Port, RS485_DE_Pin, GPIO_PIN_SET);
-    HAL_UART_Transmit(&huart3, data, size, HAL_MAX_DELAY);
-    // Возвращаем в приём (DE = 0)
-    HAL_GPIO_WritePin(RS485_DE_GPIO_Port, RS485_DE_Pin, GPIO_PIN_RESET);
-}
-
-
-
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-    uint8_t test_frame[] = {0x55, 0xAA, 0x01, 0x06, 0x00, 0x00, 0x12, 0x34};
-    while(1)
-    {
-        RS485_Send(test_frame, sizeof(test_frame));
-        HAL_Delay(1000); // Отправка раз в секунду
-    }
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
 
   /* USER CODE BEGIN Init */
 
@@ -250,8 +155,23 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  //eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
-  //eMBEnable();
+
+  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  eMBEnable();
+  HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+/*
+  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
+  eMBEnable();
+  modbus_send_simple(1, 0x0191, 20);    // Ток
+  HAL_Delay(100);
+  modbus_send_simple(1, 0x01E1, 200);   // Скорость
+  HAL_Delay(100);
+  modbus_send_simple(1, 0x1801, 0x4001); // Вперед
+  HAL_Delay(3000);
+  modbus_send_simple(1, 0x1801, 0x4002); // Назад
+  HAL_Delay(3000);
+  modbus_send_simple(1, 0x1801, 0x0400); // Стоп
+*/
   hx711_init(&hx711_handle, HX711_CLK_GPIO_Port, HX711_CLK_Pin, HX711_DOUT_GPIO_Port, HX711_DOUT_Pin);
   hx711_coef_set(&hx711_handle, 354.5); // read afer calibration
   hx711_tare(&hx711_handle, 10);
@@ -273,33 +193,18 @@ int main(void)
 
   HAL_Delay(500);
 
-/*
-  // Инициализация Modbus Master RTU
-  eMBInit(MB_RTU, 0x01, 1, 38400, MB_PAR_NONE);
-  eMBEnable();
 
-  // Установка параметров
-  Motor_SetCurrent(20);   // 2.0 A
-  Motor_SetSpeed(200);    // 200 rpm
 
-  // Запуск вперёд
-  Motor_RunForward();
-  HAL_Delay(3000);
 
-  // Назад
-  Motor_RunBackward();
-  HAL_Delay(3000);
-
-  // Стоп
-  Motor_Stop();
-*/
-/*
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  /*
+
+	eMBPoll();
+
+
 	switch(state)
 	{
 		case(Initialization):
@@ -310,6 +215,8 @@ int main(void)
 			//set_default_position = ;
 			//set_velocity = ;
 			//set_angle = ;
+			//amplitude = ;
+			//regime =;
 			Encoder_Init();
 			state = Calibration;
 			prev_state = Initialization;
@@ -320,27 +227,27 @@ int main(void)
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
 			while(limit_flag_1 = 0)
 			{
-				//движение мотора в сторону концевика 1
+				Motor_Move(set_velocity, step, 1);
 			}
 			opt_lim_1 = optical_count;
-			//короткий jog мотора в сторону концевика 2
+			Motor_Move(set_velocity, step, -1);
 			while(limit_flag_2 = 0)
 			{
-				//движение мотора в сторону концевика 2
+				Motor_Move(set_velocity, step, -1);
 			}
 			opt_lim_2 = optical_count;
-			//короткий jog мотора в сторону концевика 2
+			Motor_Move(set_velocity, step, 1);
 
 			//если нужна нормировка шкалы [0, ...]
 			/*
 			 * opt_lim_1 = 0;
 			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
 			 * position = encoder_position - opt_lim_1;
-			 *//*
+			 */
 			while(position > set_default_position)
 			{
-				//короткий jog мотора в сторону концевика 1
-				position = encoder_position;
+				Motor_Move(set_velocity, step, 1);
+				position = optical_count;
 
 			}
 
@@ -350,20 +257,35 @@ int main(void)
 		}
 		case(Working):
 		{
-			//сжатие до обеспечения заданной нагрузки
-			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
-			tenso_data = hx711_value(&hx711_handle);
-			while(tenso_data < set_tenso_data)
+			while(limit_flag_1 || limit_flag_2 != 1)
 			{
-				//которкий jog мотора в направлении сжатия/растяжения(в зависимости от режима)
-				tenso_data = hx711_value(&hx711_handle);
-
-				if (limit_flag_1 || limit_flag_2 = 1)
+				if (regime = 1)//сжатие до обеспечения заданной нагрузки
 				{
-					state = Emergency_stop;
-					prev_state = Working;
-					break;
+				//сжатие до обеспечения заданной нагрузки
+					//из состояния initialization имеем переменную set_tenso_data заданную через ПО
+					tenso_data = hx711_value(&hx711_handle);
+					while(tenso_data < set_tenso_data)
+					{
+						Motor_Move(set_velocity, step, 1);
+						tenso_data = hx711_value(&hx711_handle);
+					}
 				}
+				if (regime = 2)//колебания с заданой скоростью и амплитудой
+				{
+					position = optical_count;
+
+					while(true)
+					{
+						direction = 1;
+						Motor_Move(set_velocity, step, direction);
+						position = optical_count;
+						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+						{
+							direction = -direction;
+						}
+					}
+				}
+
 			}
 			state = Stop;
 			prev_state = Working;
@@ -388,10 +310,10 @@ int main(void)
 
 
 	      long int optical_count_buf = optical_count;
+	      char buffer3[64];
+	      int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld\n", optical_count_buf);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
 
-	      char buffer1[64];
-	      int len = snprintf(buffer1, sizeof(buffer1), "Opt linear: %ld\n", optical_count_buf);
-		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
 
 	      //memcpy(tx_buffer + 1 + sizeof(uint32_t), &optical_count_buf, sizeof(long int));
 	      //HAL_UART_Transmit(&huart1, tx_buffer, UART_TX_BUF_LEN, HAL_MAX_DELAY);
@@ -402,21 +324,16 @@ int main(void)
 		  //memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
 		  //HAL_UART_Transmit_IT(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer));
 		  //HAL_Delay(1000);
-		  //  UCHAR frame[] = { 0x06, 0x18, 0x01, 0x40, 0x01 };  // функция 0x06, регистр 0x1801, значение 0x4001
-		  //  USHORT len = 5;
-		  //  Modbus_WriteSingleRegister(&huart3, 1, 0x1801, 0x4001);
-		  //  HAL_Delay(3000);
-		  //  Modbus_WriteSingleRegister(&huart3, 1, 0x1801, 0x0400);
 
-	  	  //HAL_UART_Transmit_IT(&huart3, "1231231", 8);
-		  //Encoder_UpdateRPM();
-		  //char buffer1[64];
-		  //char buffer2[64];
-		  //int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
-		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+
+		  Encoder_UpdateRPM();
+		  char buffer1[64];
+		  char buffer2[64];
+		  int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
+		  int len1 = snprintf(buffer2, sizeof(buffer2), "Motor_Pos: %ld, Motor_RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
 		  HAL_Delay(100);
-		  //int len1 = snprintf(buffer2, sizeof(buffer2), "Pos: %ld, RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
-		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
 		  new_data = false;
 	  }
 
