@@ -1,6 +1,6 @@
 modbus/BARE/port/portevent.o: ../modbus/BARE/port/portevent.c \
- C:/stands/standKM/kmstand/modbus/include/mb.h \
- C:/stands/standKM/kmstand/modbus/BARE/port/port.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h \
  ../Core/Inc/stm32g4xx_hal_conf.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h \
@@ -32,11 +32,11 @@ modbus/BARE/port/portevent.o: ../modbus/BARE/port/portevent.c \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
- C:/stands/standKM/kmstand/modbus/include/mbport.h \
- C:/stands/standKM/kmstand/modbus/include/mbproto.h \
- C:/stands/standKM/kmstand/modbus/include/mbport.h
-C:/stands/standKM/kmstand/modbus/include/mb.h:
-C:/stands/standKM/kmstand/modbus/BARE/port/port.h:
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h:
@@ -68,6 +68,6 @@ C:/stands/standKM/kmstand/modbus/BARE/port/port.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h:
-C:/stands/standKM/kmstand/modbus/include/mbport.h:
-C:/stands/standKM/kmstand/modbus/include/mbproto.h:
-C:/stands/standKM/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:

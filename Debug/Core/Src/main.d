@@ -32,11 +32,11 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h \
  ../Core/Inc/spi.h ../Core/Inc/main.h ../Core/Inc/tim.h \
  ../Core/Inc/usart.h ../Core/Inc/gpio.h ../Core/Inc/device.h \
- C:/stands/standKM/kmstand/modbus/include/mb.h \
- C:/stands/standKM/kmstand/modbus/BARE/port/port.h \
- C:/stands/standKM/kmstand/modbus/include/mbport.h \
- C:/stands/standKM/kmstand/modbus/include/mbproto.h \
- C:/stands/standKM/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
+ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
  ../Drivers/HX711/hx711.h ../Core/Src/parser.h
 ../Core/Inc/main.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
@@ -76,10 +76,10 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/usart.h:
 ../Core/Inc/gpio.h:
 ../Core/Inc/device.h:
-C:/stands/standKM/kmstand/modbus/include/mb.h:
-C:/stands/standKM/kmstand/modbus/BARE/port/port.h:
-C:/stands/standKM/kmstand/modbus/include/mbport.h:
-C:/stands/standKM/kmstand/modbus/include/mbproto.h:
-C:/stands/standKM/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mb.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/BARE/port/port.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
+C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
 ../Drivers/HX711/hx711.h:
 ../Core/Src/parser.h:

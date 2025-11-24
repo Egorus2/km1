@@ -58,7 +58,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : MOTOR_ENC_B_ITR9_Pin */
   GPIO_InitStruct.Pin = MOTOR_ENC_B_ITR9_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(MOTOR_ENC_B_ITR9_GPIO_Port, &GPIO_InitStruct);
 
@@ -68,10 +68,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_old_Pin PD13 MOTOR_ENC_A_ITR11_Pin OPT_LINEAR_Z_ITR5_Pin
-                           OPT_LINEAR_B_ITR6_Pin OPT_LINEAR_A_ITR7_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_old_Pin|GPIO_PIN_13|MOTOR_ENC_A_ITR11_Pin|OPT_LINEAR_Z_ITR5_Pin
-                          |OPT_LINEAR_B_ITR6_Pin|OPT_LINEAR_A_ITR7_Pin;
+  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_old_Pin PD13 OPT_LINEAR_Z_ITR5_Pin OPT_LINEAR_B_ITR6_Pin
+                           OPT_LINEAR_A_ITR7_Pin */
+  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_old_Pin|GPIO_PIN_13|OPT_LINEAR_Z_ITR5_Pin|OPT_LINEAR_B_ITR6_Pin
+                          |OPT_LINEAR_A_ITR7_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
@@ -82,8 +82,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ENC_Z_ITR12_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ENC_A_ITR0_Pin ENC_B_ITR1_Pin */
-  GPIO_InitStruct.Pin = ENC_A_ITR0_Pin|ENC_B_ITR1_Pin;
+  /*Configure GPIO pins : ENC_A_ITR0_Pin ENC_B_ITR1_Pin MOTOR_ENC_A_ITR11_Pin */
+  GPIO_InitStruct.Pin = ENC_A_ITR0_Pin|ENC_B_ITR1_Pin|MOTOR_ENC_A_ITR11_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);

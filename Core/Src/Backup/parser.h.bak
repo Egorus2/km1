@@ -1,0 +1,16 @@
+#ifndef PARSER_H
+#define PARSER_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+void send_uart_packet (uint8_t msg_type, uint8_t * data, uint8_t len, UART_HandleTypeDef *huart);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

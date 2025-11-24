@@ -65,7 +65,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-hx711_t hx711_handle;
+extern volatile hx711_t hx711_handle;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -110,12 +110,17 @@ int direction;
 int count = 0;
 int pull_number;
 int set_current;
+int stop_count = 0;
+int opt_flag_1 = 0;
+int opt_flag_2 = 0;
+int z1 = 0;
+
 
 
 enum states
 {
-	Initialization = 0x00,
-	Calibration = 0x01,
+	INITIALIZATION = 0x00,
+	CALIBRATION = 0x01,
 	MODE1_CONFIG = 0x10,
 	MODE1_START = 0x11,
 	MODE1_STOP = 0x12,
@@ -144,8 +149,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
- uint8_t data []= {1,1,1};
- send_uart_packet(0x00, data, 3, &huart1);
+ //uint8_t data []= {1,1,1};
+ //send_uart_packet(0x00, data, 3, &huart1);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -171,36 +176,17 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
-  eMBEnable();
+
+
   HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
-/*
-  eMBInit(MB_RTU, 0x01, 0, 38400, MB_PAR_EVEN);
-  eMBEnable();
-  modbus_send_simple(1, 0x0191, 20);    // Ток
-  HAL_Delay(100);
-  modbus_send_simple(1, 0x01E1, 200);   // Скорость
-  HAL_Delay(100);
-  modbus_send_simple(1, 0x1801, 0x4001); // Вперед
-  HAL_Delay(3000);
-  modbus_send_simple(1, 0x1801, 0x4002); // Назад
-  HAL_Delay(3000);
-  modbus_send_simple(1, 0x1801, 0x0400); // Стоп
-*/
+
+
   hx711_init(&hx711_handle, HX711_CLK_GPIO_Port, HX711_CLK_Pin, HX711_DOUT_GPIO_Port, HX711_DOUT_Pin);
   hx711_coef_set(&hx711_handle, 354.5); // read afer calibration
   hx711_tare(&hx711_handle, 10);
-
-
-  uint8_t tx_buffer [UART_TX_BUF_LEN] = {0};
-  tx_buffer[0] = UART_START_BYTE;
-  tx_buffer[UART_TX_BUF_LEN - 2] = UART_STOP_BYTE;
-  tx_buffer[UART_TX_BUF_LEN - 1] = (uint8_t)'\n';
-
-
-
 
   /* USER CODE END 2 */
 
@@ -212,65 +198,198 @@ int main(void)
 
 
 
-
+  state = INITIALIZATION;
   while (1)
   {
     /* USER CODE END WHILE */
-	//uint8_t * data = new(10);
+
     /* USER CODE BEGIN 3 */
 
-	eMBPoll();
+	  //modbus_send_simple(1, 0x0191, 20);    // Ток
+	  //HAL_Delay(100);
+	  //modbus_send_simple(1, 0x01E1, 800);// Скорость
+	  //HAL_Delay(100);
+	  //modbus_send_simple(1, 0x01E5, 0);
+	  //modbus_send_simple(1, 0x6201, 2000 & 0xFFFF); // Расстояние
+	  //modbus_send_simple(1, 0x6202, (2000 >> 16) & 0xFFFF); // Расстояние
 
+	  //HAL_Delay(100);
+	  //modbus_send_simple(1, 0x1801, 0x4001); // Вперед
+	  //HAL_Delay(10);
+	  //modbus_send_simple(1, 0x1801, 0x4002); // Назад
+	  //HAL_Delay(3000);
+	  //modbus_send_simple(1, 0x6002, 0x0400); // Стоп
+	  //HAL_Delay(3000);
+	  //modbus_send_simple(1, 0x6200, 0x0002);
+	  //modbus_send_simple(1, 0x6203, 300);
+	  //modbus_send_simple(1, 0x6002, 0x0010);
+	  //HAL_Delay(3000);
+	  //modbus_send_simple(1, 0x6002, 0x0040);
+
+	if(limit_flag_1 + limit_flag_2>0)
+	{
+		Motor_Stop();
+		HAL_Delay(1000);
+		stop_count ++;
+	}
 
 	switch(state)
 	{
-		case(Initialization):
+		case(INITIALIZATION):
 		{
 			//Добавить ввод данных(Режим работы, скорость, усилие)
 			//Добавить вывод всех данных
-			//set_tenso_data = ;
-			//set_default_position = ;
-			//set_velocity = ;
-			//set_angle = ;
-			//amplitude = ;
-			//regime =;
+			set_tenso_data = 0;
+			set_default_position = 0;
+			set_velocity = 30;
+			set_angle = 0;
+			amplitude = 0;
+			regime =3;
 			Encoder_Init();
-			state = Calibration;
-			prev_state = Initialization;
+			state = CALIBRATION;
+			prev_state = INITIALIZATION;
 			break;
 		}
-		case(Calibration):
+		case(CALIBRATION):
 		{
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
-			while(limit_flag_1 = 0)
+			if(stop_count == 0)
 			{
-				Motor_Move(set_current, set_velocity, step, 1);
+				Motor_Move(set_current, set_velocity, 1);
+				stop_count;
 			}
+			if(stop_count == 2)
+			{
+				Motor_Move(set_current, set_velocity, -1);
+				z1 = 0;
+				while(z1 < 100000000)
+				{
+					__NOP();
+					z1++;
+				}
+				Motor_Stop();
+				Motor_Move(set_current, set_velocity/5, 1);
+				stop_count++;
+				while(z1 < 100000000)
+				{
+					__NOP();
+					z1++;
+				}
+
+			}
+			if(stop_count == 4)
+			{
+				if(opt_flag_1 == 0)
+				{
+					opt_lim_1 = optical_count;
+					opt_flag_1++;
+				}
+				z1 = 0;
+
+				Motor_Move(set_current, set_velocity, -1);
+				while(z1 < 100000000)
+				{
+					__NOP();
+					z1++;
+				}
+				stop_count++;
+
+			}
+			if(stop_count == 6)
+			{
+				Motor_Move(set_current, set_velocity, 1);
+				z1 = 0;
+				while(z1 < 100000000)
+				{
+					__NOP();
+					z1++;
+				}
+				Motor_Stop();
+				Motor_Move(set_current, set_velocity/5, -1);
+				stop_count++;
+			}
+			if(stop_count == 8)
+			{
+				if(opt_flag_2 == 0)
+				{
+					opt_lim_2 = optical_count;
+					opt_flag_2++;
+				}
+				z1 = 0;
+				while(z1 < 100000000)
+				{
+					__NOP();
+					z1++;
+				}
+				Motor_Move(set_current, set_velocity, 1);
+			}
+			if(position > set_default_position && opt_flag_1 == 1 && opt_flag_2 == 1)
+			{
+			    char buffer3[64];
+			    int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld, %ld\n", opt_lim_1, opt_lim_2);
+				HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+				Motor_Stop();
+				state = regime;
+				prev_state = CALIBRATION;
+				break;
+			}
+
+
+
+			/*while(limit_flag_1 == 0)
+			{
+				Motor_Move(set_current, set_velocity, 1);
+			}
+			Motor_Stop();
+			HAL_Delay(1000);
+			Motor_Move(set_current, set_velocity, -1);
+			HAL_Delay(1000);
+			Motor_Stop();
+			while(limit_flag_1 == 0)
+			{
+				Motor_Move(set_current, set_velocity/5, 1);
+			}
+			Motor_Stop();
 			opt_lim_1 = optical_count;
-			Motor_Move(set_current, set_velocity, step, -1);
-			while(limit_flag_2 = 0)
+
+			while(limit_flag_2 == 0)
 			{
-				Motor_Move(set_current, set_velocity, step, -1);
+				Motor_Move(set_current, set_velocity, -1);
 			}
+			Motor_Stop();
+			HAL_Delay(1000);
+			Motor_Move(set_current, set_velocity, 1);
+			HAL_Delay(1000);
+			Motor_Stop();
+			while(limit_flag_2 == 0)
+			{
+				Motor_Move(set_current, set_velocity/5, -1);
+			}
+			Motor_Stop();
 			opt_lim_2 = optical_count;
-			Motor_Move(set_current, set_velocity, step, 1);
 
 			//если нужна нормировка шкалы [0, ...]
 			/*
 			 * opt_lim_1 = 0;
 			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
 			 * position = encoder_position - opt_lim_1;
-			 */
-			while(position > set_default_position)
+			 *//*
+			while(position < set_default_position)
 			{
-				Motor_Move(set_current, set_velocity, step, 1);
+				Motor_Move(set_current, set_velocity, 1);
 				position = optical_count;
-
 			}
+			HAL_Delay(1000);
+
+		    char buffer3[64];
+		    int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld, %ld\n", opt_lim_1, opt_lim_2);
+			HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+
 			state = regime;
-			prev_state = Calibration;
-			break;
+			prev_state = CALIBRATION;
+			break; */
 		}
+	}
 		/*case(Working):
 		{
 			while(limit_flag_1 || limit_flag_2 != 1)
@@ -307,7 +426,7 @@ int main(void)
 			break;
 		}
 
-*/
+*//*
 		case(MODE1_CONFIG):
 		{
 
@@ -414,16 +533,16 @@ int main(void)
 		}
 	}
 
-
+*/
 
 	  if(new_data)
 	  {
 
 
-	      long int optical_count_buf = optical_count;
-	      char buffer3[64];
-	      int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld\n", optical_count_buf);
-		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+	      //long int optical_count_buf = optical_count;
+	      //char buffer3[64];
+	      //int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld\n", optical_count_buf);
+		  //HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
 
 
 	      //memcpy(tx_buffer + 1 + sizeof(uint32_t), &optical_count_buf, sizeof(long int));
@@ -435,8 +554,30 @@ int main(void)
 		  //memcpy(tx_buffer + 1, &tenso_data, sizeof(uint32_t));
 		  //HAL_UART_Transmit_IT(&huart1, (uint8_t *) tx_buffer, sizeof(tx_buffer));
 		  //HAL_Delay(1000);
-
-
+/*
+		  Encoder_UpdateRPM();
+		  char buffer12[64];
+		  char buffer22[64];
+		  int len2 = snprintf(buffer12, sizeof(buffer12), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer12, len2, HAL_MAX_DELAY);
+		  int len12 = snprintf(buffer22, sizeof(buffer22), "Motor_Pos: %ld, Motor_RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
+		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer22, len12, HAL_MAX_DELAY);
+		  HAL_Delay(100);
+		  new_data = false;*/
+/*
+		  modbus_send_simple(1, 0x0191, 20);    // Ток
+		  HAL_Delay(100);
+		  modbus_send_simple(1, 0x01E1, 800);// Скорость
+		  HAL_Delay(100);
+		  modbus_send_simple(1, 0x01E5, 200);
+		  //modbus_send_simple(1, 0x0203, (2000 >> 16) & 0xFFFF); // Расстояние
+		  HAL_Delay(100);
+		  modbus_send_simple(1, 0x1801, 0x4001); // Вперед
+		  HAL_Delay(3000);
+		  modbus_send_simple(1, 0x1801, 0x4002); // Назад
+		  HAL_Delay(3000);
+		  modbus_send_simple(1, 0x1801, 0x0400); // Стоп
+*/
 		  Encoder_UpdateRPM();
 		  char buffer1[64];
 		  char buffer2[64];
@@ -465,7 +606,7 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -473,7 +614,13 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
+  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -483,12 +630,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
     Error_Handler();
   }

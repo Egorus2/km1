@@ -3,10 +3,12 @@
 #include <string.h>
 #include "mb.h"
 #include "mbport.h"
+#include "hx711.h"
 
 #define ENCODER_PPR 1000
 #define TIMER_PERIOD_MS 100
 
+volatile hx711_t hx711_handle;
 volatile long int optical_count;
 volatile bool new_data = 0;
 volatile int32_t encoder_position = 0;  // текущая позиция энкодера
@@ -131,25 +133,27 @@ void modbus_send_simple(uint8_t slave_id, uint16_t reg_addr, uint16_t value)
     tx_data[6] = (crc & 0xFF);
     tx_data[7] = (crc >> 8);
 
-    HAL_UART_Transmit(&huart3, tx_data, 8, 1000);
+    HAL_UART_Transmit_IT(&huart3, tx_data, 8);
     HAL_Delay(10);
 }
 
-void Motor_Move(int current, int velocity, int distance, int direction)
+void Motor_Move(int current, int velocity, int direction)
 {
-	modbus_send_simple(1, 0x0191, current);    // Ток
-	modbus_send_simple(1, 0x01E1, velocity);   // Скорость
-	modbus_send_simple(1, 0x0202, distance & 0xFFFF); // Расстояние
-	modbus_send_simple(1, 0x0203, (distance >> 16) & 0xFFFF); // Расстояние
-	HAL_Delay(100);
-	if (direction == 1)
-	{
-		modbus_send_simple(1, 0x1801, 0x4001); // Вперед
-	}
-	if (direction == -1)
-	{
-		modbus_send_simple(1, 0x1801, 0x4002); // Вперед
-	}
-	HAL_Delay(3000);
+	  modbus_send_simple(1, 0x6200, 0x0002);
+	  modbus_send_simple(1, 0x6203, velocity*direction);
+	  modbus_send_simple(1, 0x6002, 0x0010);
+}
+void Motor_Stop()
+{
+	modbus_send_simple(1, 0x6002, 0x0040);
+}
 
+void Sensor_Poll()
+{
+
+	Encoder_UpdateRPM();
+	tenso_data = hx711_value(&hx711_handle);
+	position = optical_count;
+	angle = encoder_position;
+	velocity = motor_encoder_rpm;
 }
