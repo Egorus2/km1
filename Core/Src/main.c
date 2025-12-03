@@ -114,7 +114,53 @@ int stop_count = 0;
 int opt_flag_1 = 0;
 int opt_flag_2 = 0;
 int z1 = 0;
+uint8_t rx_byte = 0;
 
+#pragma pack(push, 1)
+
+typedef struct {
+    float freq;
+    uint16_t count;
+    float moment;
+} mode1_config_t;
+
+typedef struct {
+    float speed;
+    float start_angle;
+    float end_angle;
+    uint32_t hold_ms;
+} mode2_config_t;
+
+typedef struct {
+    float torque;
+    uint32_t duration;
+    uint8_t direction;
+} torque_t;
+
+typedef struct {
+    uint32_t ts_ms;
+    float load;
+    float pos;
+    float angle1;
+    float angle2;
+    float temp;
+    uint16_t flags;
+} stream_data_t;
+
+typedef struct {
+    float p;
+    float i;
+    float d;
+} pid_t;
+
+#pragma pack(pop)
+
+
+mode1_config_t g_mode1_cfg;
+mode2_config_t g_mode2_cfg;
+torque_t       g_torque_cmd;
+pid_t          g_pid_cfg;
+stream_data_t  g_stream_data;
 
 
 enum states
@@ -135,6 +181,147 @@ enum states
 };
 
 
+
+
+void Mode1_Handle(const mode1_config_t* cfg)
+{
+    g_mode1_cfg = *cfg;
+}
+
+void Mode2_Handle(const mode2_config_t* cfg)
+{
+    g_mode2_cfg = *cfg;
+}
+
+void Torque_Handle(const torque_t* t)
+{
+    g_torque_cmd = *t;
+}
+
+void PID_Handle(const pid_t* pid)
+{
+    g_pid_cfg = *pid;
+}
+
+void Stream_Handle(const stream_data_t* data)
+{
+    g_stream_data = *data;
+}
+
+
+
+
+void packet_callback(uint8_t msg_type, uint8_t *payload, uint8_t size)
+{
+    switch(msg_type)
+    {
+        case 0x10: // MODE1_CONFIG
+        {
+            if (size >= sizeof(mode1_config_t))
+            {
+                mode1_config_t cfg;
+                memcpy(&cfg, payload, sizeof(cfg));
+                Mode1_Handle(&cfg);
+                uint8_t a = 0;
+                uint8_t b = 0;
+                uint8_t c = 0;
+                a = g_mode1_cfg.freq;
+                b = g_mode1_cfg.count;
+                c = g_mode1_cfg.moment;
+
+            }
+            break;
+        }
+
+        case 0x20: // MODE2_CONFIG
+        {
+            if (size >= sizeof(mode2_config_t))
+            {
+                mode2_config_t cfg;
+                memcpy(&cfg, payload, sizeof(cfg));
+                Mode2_Handle(&cfg);
+                uint8_t a = 0;
+                uint8_t b = 0;
+                uint8_t c = 0;
+                uint8_t d = 0;
+                a = g_mode2_cfg.speed;
+                b = g_mode2_cfg.start_angle;
+                c = g_mode2_cfg.end_angle;
+                d = g_mode2_cfg.hold_ms;// неправильное значение
+
+            }
+            break;
+        }
+
+        case 0x32: // TORQUE
+        {
+            if (size >= sizeof(torque_t))
+            {
+                torque_t cmd;
+                memcpy(&cmd, payload, sizeof(cmd));
+                Torque_Handle(&cmd);
+                uint8_t a = 0;
+                uint8_t b = 0;
+                uint8_t c = 0;
+                a = g_torque_cmd.torque;
+                b = g_torque_cmd.duration;//неправильное значение
+                c = g_torque_cmd.direction;
+
+            }
+            break;
+        }
+
+        case 0x06: // PID CONFIG
+        {
+            if (size >= sizeof(pid_t))
+            {
+                pid_t pid;
+                memcpy(&pid, payload, sizeof(pid));
+                PID_Handle(&pid);
+
+                uint8_t a = 0;
+                uint8_t b = 0;
+                uint8_t c = 0;
+                a = g_pid_cfg.p;
+                b = g_pid_cfg.i;
+                c = g_pid_cfg.d;
+
+
+
+            }
+            break;
+        }
+
+        case 0x30: // STREAM
+        {
+            if (size >= sizeof(stream_data_t))//не заходит в if
+            {
+                stream_data_t data;
+                memcpy(&data, payload, sizeof(data));
+                Stream_Handle(&data);
+                uint8_t a = 0;
+                uint8_t b = 0;
+                uint8_t c = 0;
+                uint8_t d = 0;
+                uint8_t e = 0;
+                uint8_t f = 0;
+                uint8_t g = 0;
+                a = g_stream_data.ts_ms;
+                b = g_stream_data.load;
+                c = g_stream_data.pos;
+                d = g_stream_data.angle1;
+                e = g_stream_data.angle2;
+                f = g_stream_data.temp;
+                g = g_stream_data.flags;
+                HAL_Delay(10);
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+}
 
 
 
@@ -179,7 +366,8 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-
+  parser_set_callback(packet_callback);
+  HAL_UART_Receive_IT(&huart1, &rx_byte, 1);
 
   HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
 

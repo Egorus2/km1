@@ -26,6 +26,7 @@
 #include <string.h>
 #include "port.h"
 #include "device.h"
+#include "parser.h"
 extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
@@ -62,6 +63,7 @@ volatile uint8_t motor_encoder_last_state = 0;
 extern bool limit_flag_1;
 extern bool limit_flag_2;
 bool limit_flag = 0;
+extern uint8_t rx_byte;
 
 /* USER CODE END PV */
 
@@ -406,6 +408,17 @@ void UART5_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart == &huart1)
+    {
+        parser_process_byte(rx_byte);
+        HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // заново включаем прием
+    }
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	    uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);

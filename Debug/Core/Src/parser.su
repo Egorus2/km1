@@ -1,12 +1,18 @@
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/new:174:33:void* operator new(std::size_t, void*)	16	static
-../Core/Src/parser.cpp:19:11:uint16_t packet_t::crc16_ccitt(uint8_t*, uint32_t)	32	static
-../Core/Src/parser.cpp:37:2:packet_t::packet_t(uint8_t*, uint8_t, uint8_t)	24	static
-../Core/Src/parser.cpp:47:2:packet_t::~packet_t()	16	static
+../Core/Src/parser.cpp:22:11:uint16_t packet_t::crc16_ccitt(uint8_t*, uint32_t)	32	static
+../Core/Src/parser.cpp:40:2:packet_t::packet_t(uint8_t*, uint8_t, uint8_t)	24	static
+../Core/Src/parser.cpp:48:2:packet_t::packet_t()	16	static
+../Core/Src/parser.cpp:53:2:packet_t::~packet_t()	16	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:133:14:std::_Vector_base<unsigned char, std::allocator<unsigned char> >::_Vector_impl::~_Vector_impl()	24	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:315:7:std::_Vector_base<_Tp, _Alloc>::_Vector_base() [with _Tp = unsigned char; _Alloc = std::allocator<unsigned char>]	16	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:531:7:std::vector<_Tp, _Alloc>::vector() [with _Tp = unsigned char; _Alloc = std::allocator<unsigned char>]	16	static
-../Core/Src/parser.cpp:57:24:std::vector<unsigned char> packet_t::make_buff()	32	static
-../Core/Src/parser.cpp:79:17:void send_uart_packet(uint8_t, uint8_t*, uint8_t, UART_HandleTypeDef*)	64	static
+../Core/Src/parser.cpp:85:24:std::vector<unsigned char> packet_t::make_buff()	32	static
+../Core/Src/parser.cpp:123:2:parser_t::parser_t()	24	static
+../Core/Src/parser.cpp:129:2:parser_t::~parser_t()	24	static
+../Core/Src/parser.cpp:134:7:void parser_t::process_byte(uint8_t)	16	static
+../Core/Src/parser.cpp:215:17:void parser_set_callback(parser_callback_t)	16	static
+../Core/Src/parser.cpp:220:17:void parser_process_byte(uint8_t)	16	static
+../Core/Src/parser.cpp:225:17:void send_uart_packet(uint8_t, uint8_t*, uint8_t, UART_HandleTypeDef*)	64	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:137:2:std::_Vector_base<_Tp, _Alloc>::_Vector_impl::_Vector_impl() [with _Tp = unsigned char; _Alloc = std::allocator<unsigned char>]	24	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:367:7:std::_Vector_base<_Tp, _Alloc>::~_Vector_base() [with _Tp = unsigned char; _Alloc = std::allocator<unsigned char>]	16	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_vector.h:733:7:std::vector<_Tp, _Alloc>::~vector() [with _Tp = unsigned char; _Alloc = std::allocator<unsigned char>]	40	static
@@ -94,3 +100,7 @@ C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.external
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_algobase.h:397:2:static void std::__copy_move<false, false, std::random_access_iterator_tag>::__assign_one(_Tp*, _Up*) [with _Tp = unsigned char; _Up = unsigned char]	16	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_algobase.h:497:5:_OI std::__copy_move_a2(_II, _II, _OI) [with bool _IsMove = true; _II = unsigned char*; _OI = unsigned char*]	24	static
 C:\ST\STM32CubeIDE_1.19.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/c++/13.3.1/bits/stl_algobase.h:433:2:static _Up* std::__copy_move<_IsMove, true, std::random_access_iterator_tag>::__copy_m(_Tp*, _Tp*, _Up*) [with _Tp = unsigned char; _Up = unsigned char; bool _IsMove = true]	32	static
+../Core/Src/parser.cpp:230:1:void __static_initialization_and_destruction_0()	8	static
+../Core/Src/parser.cpp:230:1:void __static_initialization_and_destruction_1()	8	static
+../Core/Src/parser.cpp:230:1:cpp)	8	static
+../Core/Src/parser.cpp:230:1:cpp)	8	static

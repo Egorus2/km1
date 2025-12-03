@@ -37,7 +37,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
  C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h \
  C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h \
- ../Drivers/HX711/hx711.h ../Core/Src/parser.h
+ ../Drivers/HX711/hx711.h ../Core/Inc/parser.h
 ../Core/Inc/main.h:
 ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h:
 ../Core/Inc/stm32g4xx_hal_conf.h:
@@ -82,4 +82,4 @@ C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
 C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbproto.h:
 C:/Users/AndreyChuev/Desktop/KMStand/kmstand/modbus/include/mbport.h:
 ../Drivers/HX711/hx711.h:
-../Core/Src/parser.h:
+../Core/Inc/parser.h:
