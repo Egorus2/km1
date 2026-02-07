@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -100,6 +99,7 @@ extern float set_default_position;//заданное нулевое положе
 extern float angle; //текущий угол
 extern float set_angle; //заданное значение угла
 
+float zero_position = 0.0;
 int state = 0;
 int prev_state = 0;
 int step = 1;
@@ -109,12 +109,13 @@ int regime;
 int direction;
 int count = 0;
 int pull_number;
-int set_current;
-int stop_count = 0;
+int set_current = 20;
+volatile int stop_count = 0;
 int opt_flag_1 = 0;
 int opt_flag_2 = 0;
 int z1 = 0;
 uint8_t rx_byte = 0;
+int control = 0;
 
 #pragma pack(push, 1)
 
@@ -180,8 +181,22 @@ enum states
 	STREAM_DATA = 0x40
 };
 
+enum calibration_states
+{
+	RIGHT_RUN_FAST_CALIB = 0,
+	RIGHT_RUN_SLOW_CALIB,
+	LEFT_RUN_FAST_CALIB,
+	LEFT_RUN_SLOW_CALIB,
+	RIGHT_LOGIC,
+	LEFT_LOGIC,
+	END
+};
 
-
+uint8_t calib_state = 0;
+uint8_t calib_state_prev = 0;
+uint8_t non_limit_switch_motion = 0;
+uint8_t motion_ctrl = 1;
+uint8_t lside = 0;
 
 void Mode1_Handle(const mode1_config_t* cfg)
 {
@@ -244,9 +259,9 @@ void packet_callback(uint8_t msg_type, uint8_t *payload, uint8_t size)
                 uint8_t b = 0;
                 uint8_t c = 0;
                 uint8_t d = 0;
-                a = g_mode2_cfg.speed;
-                b = g_mode2_cfg.start_angle;
-                c = g_mode2_cfg.end_angle;
+                set_velocity = g_mode2_cfg.speed;
+                set_angle = g_mode2_cfg.start_angle;
+                set_tenso_data = g_mode2_cfg.end_angle;
                 d = g_mode2_cfg.hold_ms;// неправильное значение
 
             }
@@ -313,7 +328,7 @@ void packet_callback(uint8_t msg_type, uint8_t *payload, uint8_t size)
                 e = g_stream_data.angle2;
                 f = g_stream_data.temp;
                 g = g_stream_data.flags;
-                HAL_Delay(10);
+                //HAL_Delay(10);
             }
             break;
         }
@@ -358,7 +373,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI3_Init();
   MX_UART5_Init();
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
@@ -389,6 +403,7 @@ int main(void)
   state = INITIALIZATION;
   while (1)
   {
+	  //HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -414,12 +429,13 @@ int main(void)
 	  //HAL_Delay(3000);
 	  //modbus_send_simple(1, 0x6002, 0x0040);
 
-	if(limit_flag_1 + limit_flag_2>0)
+	/*if((limit_flag_1 + limit_flag_2>0))
 	{
 		Motor_Stop();
-		HAL_Delay(1000);
 		stop_count ++;
-	}
+		z1 = 0;
+		//control = 1;
+	}*/
 
 	switch(state)
 	{
@@ -429,28 +445,168 @@ int main(void)
 			//Добавить вывод всех данных
 			set_tenso_data = 0;
 			set_default_position = 0;
-			set_velocity = 30;
+			set_velocity = 50;
 			set_angle = 0;
 			amplitude = 0;
-			regime =3;
+			regime = MODE2_CONFIG;
 			Encoder_Init();
+
 			state = CALIBRATION;
 			prev_state = INITIALIZATION;
 			break;
 		}
 		case(CALIBRATION):
 		{
+			switch(calib_state)
+			{
+			case(RIGHT_RUN_FAST_CALIB):
+			{
+				if(motion_ctrl)
+				{
+					Motor_Move(set_current, set_velocity, 1);
+					motion_ctrl = 0;
+				}
+				if(limit_flag_1)
+				{
+					calib_state = RIGHT_LOGIC;
+					calib_state_prev = RIGHT_RUN_FAST_CALIB;
+					motion_ctrl = 1;
+				}
+				if(non_limit_switch_motion)
+				{
+					HAL_Delay(3000);
+					//TODO: ПЕРЕДЕЛАТЬ НА ОПРОС ТЙМЕРА ПО ТИКАМ ДЛЯ ТОГО ЧТО БЫ НЕ БЛОКАТЬ РАБОТУ
+					calib_state = LEFT_LOGIC;
+					calib_state_prev = RIGHT_RUN_FAST_CALIB;
+					motion_ctrl = 1;
+					non_limit_switch_motion = 0;
+				}
+				break;
+			}
+
+			case(LEFT_RUN_FAST_CALIB):
+			{
+				if(motion_ctrl)
+				{
+					Motor_Move(set_current, set_velocity, -1);
+					motion_ctrl = 0;
+				}
+				if(non_limit_switch_motion)
+				{
+					HAL_Delay(3000);
+					//TODO: ПЕРЕДЕЛАТЬ НА ОПРОС ТЙМЕРА ПО ТИКАМ ДЛЯ ТОГО ЧТО БЫ НЕ БЛОКАТЬ РАБОТУ
+					calib_state = RIGHT_LOGIC;
+					calib_state_prev = LEFT_RUN_FAST_CALIB;
+					motion_ctrl = 1;
+					non_limit_switch_motion = 0;
+				}
+				if(limit_flag_2)
+				{
+
+					calib_state = LEFT_LOGIC;
+					calib_state_prev = LEFT_RUN_FAST_CALIB;
+					motion_ctrl = 1;
+				}
+				break;
+			}
+
+			case(RIGHT_RUN_SLOW_CALIB):
+			{
+				if(motion_ctrl)
+				{
+					Motor_Move(set_current, set_velocity/5, 1);
+					motion_ctrl = 0;
+				}
+				if(limit_flag_1)
+				{
+					calib_state = RIGHT_LOGIC;
+					calib_state_prev = RIGHT_RUN_SLOW_CALIB;
+					motion_ctrl = 1;
+				}
+				break;
+			}
+
+			case(LEFT_RUN_SLOW_CALIB):
+			{
+				if(motion_ctrl)
+				{
+					Motor_Move(set_current, set_velocity/5, -1);
+					motion_ctrl = 0;
+				}
+				if(limit_flag_2)
+				{
+					calib_state = LEFT_LOGIC;
+					calib_state_prev = LEFT_RUN_SLOW_CALIB;
+					motion_ctrl = 1;
+				}
+				break;
+			}
+			case (RIGHT_LOGIC):
+			{
+				limit_flag_1 = 0;
+				limit_flag_2 =0;
+				if(calib_state_prev == RIGHT_RUN_FAST_CALIB)
+				{
+					calib_state = LEFT_RUN_FAST_CALIB;
+					non_limit_switch_motion = 1;
+
+				}
+				else if(calib_state_prev == LEFT_RUN_FAST_CALIB)
+				{
+					calib_state = RIGHT_RUN_SLOW_CALIB;
+
+				}
+				else if(calib_state_prev == RIGHT_RUN_SLOW_CALIB)
+				{
+					calib_state = LEFT_RUN_FAST_CALIB;
+
+				}
+			break;
+			}
+
+			case(LEFT_LOGIC):
+			{
+				motion_ctrl = 1;
+				limit_flag_1 = 0;
+				limit_flag_2 =0;
+				if(calib_state_prev == LEFT_RUN_FAST_CALIB)
+				{
+					calib_state = RIGHT_RUN_FAST_CALIB;
+					non_limit_switch_motion = 1;
+				}
+				else if(calib_state_prev == RIGHT_RUN_FAST_CALIB)
+				{
+					calib_state = LEFT_RUN_SLOW_CALIB;
+				}
+				else if(calib_state_prev == LEFT_RUN_SLOW_CALIB)
+				{
+					calib_state = END;
+				}
+				break;
+			}
+
+			case(END):
+			{
+				//state = ACK;
+				//prev_state = CALIBRATION;
+				Motor_Move(set_current, set_velocity, 1);
+				HAL_Delay(5000);
+				Motor_Stop();
+				state = ACK;
+				break;
+			}
+			}
 			//двигаемся в сторону 1 концевика, когда дошли(limit_flag = 1), останавливаемся, записываем данные с линейки в opt_lim_1, так же в другую сторону.
-			if(stop_count == 0)
+			/*if(stop_count == 0)
 			{
 				Motor_Move(set_current, set_velocity, 1);
-				stop_count;
+				stop_count++;
 			}
 			if(stop_count == 2)
 			{
 				Motor_Move(set_current, set_velocity, -1);
 				z1 = 0;
-				while(z1 < 100000000)
+				while(z1 < 1000000000/set_velocity)
 				{
 					__NOP();
 					z1++;
@@ -458,12 +614,6 @@ int main(void)
 				Motor_Stop();
 				Motor_Move(set_current, set_velocity/5, 1);
 				stop_count++;
-				while(z1 < 100000000)
-				{
-					__NOP();
-					z1++;
-				}
-
 			}
 			if(stop_count == 4)
 			{
@@ -475,11 +625,6 @@ int main(void)
 				z1 = 0;
 
 				Motor_Move(set_current, set_velocity, -1);
-				while(z1 < 100000000)
-				{
-					__NOP();
-					z1++;
-				}
 				stop_count++;
 
 			}
@@ -487,7 +632,7 @@ int main(void)
 			{
 				Motor_Move(set_current, set_velocity, 1);
 				z1 = 0;
-				while(z1 < 100000000)
+				while(z1 < 1000000000/set_velocity)
 				{
 					__NOP();
 					z1++;
@@ -504,147 +649,64 @@ int main(void)
 					opt_flag_2++;
 				}
 				z1 = 0;
-				while(z1 < 100000000)
+				while(z1 < 1000000000/set_velocity)
 				{
 					__NOP();
 					z1++;
 				}
 				Motor_Move(set_current, set_velocity, 1);
 			}
-			if(position > set_default_position && opt_flag_1 == 1 && opt_flag_2 == 1)
+			if((position > 0) && (opt_flag_1 == 1) && (opt_flag_2 == 1))
 			{
 			    char buffer3[64];
 			    int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld, %ld\n", opt_lim_1, opt_lim_2);
 				HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
 				Motor_Stop();
-				state = regime;
+				state = ACK;
 				prev_state = CALIBRATION;
-				break;
-			}
+
+			}*/
 
 
-
-			/*while(limit_flag_1 == 0)
-			{
-				Motor_Move(set_current, set_velocity, 1);
-			}
-			Motor_Stop();
-			HAL_Delay(1000);
-			Motor_Move(set_current, set_velocity, -1);
-			HAL_Delay(1000);
-			Motor_Stop();
-			while(limit_flag_1 == 0)
-			{
-				Motor_Move(set_current, set_velocity/5, 1);
-			}
-			Motor_Stop();
-			opt_lim_1 = optical_count;
-
-			while(limit_flag_2 == 0)
-			{
-				Motor_Move(set_current, set_velocity, -1);
-			}
-			Motor_Stop();
-			HAL_Delay(1000);
-			Motor_Move(set_current, set_velocity, 1);
-			HAL_Delay(1000);
-			Motor_Stop();
-			while(limit_flag_2 == 0)
-			{
-				Motor_Move(set_current, set_velocity/5, -1);
-			}
-			Motor_Stop();
-			opt_lim_2 = optical_count;
-
-			//если нужна нормировка шкалы [0, ...]
-			/*
-			 * opt_lim_1 = 0;
-			 * opt_lim_2 = opt_lim_2 - opt_lim_1;
-			 * position = encoder_position - opt_lim_1;
-			 *//*
-			while(position < set_default_position)
-			{
-				Motor_Move(set_current, set_velocity, 1);
-				position = optical_count;
-			}
-			HAL_Delay(1000);
-
-		    char buffer3[64];
-		    int len3 = snprintf(buffer3, sizeof(buffer3), "Opt linear: %ld, %ld\n", opt_lim_1, opt_lim_2);
-			HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
-
-			state = regime;
-			prev_state = CALIBRATION;
-			break; */
-		}
-	}
-		/*case(Working):
-		{
-			while(limit_flag_1 || limit_flag_2 != 1)
-			{
-				if (regime = 1)//сжатие до обеспечения заданной нагрузки
-				{
-				//сжатие до обеспечения заданной нагрузки
-					//из состояния initialization имеем переменную set_tenso_data заданную через ПО
-					tenso_data = hx711_value(&hx711_handle);
-					while(tenso_data < set_tenso_data)
-					{
-						tenso_data = hx711_value(&hx711_handle);
-					}
-				}
-				if (regime = 2)//колебания с заданой скоростью и амплитудой
-				{
-					position = optical_count;
-
-					while(true)
-					{
-						direction = 1;
-						Motor_Move(set_current, set_velocity, step, direction);
-						position = optical_count;
-						if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
-						{
-							//direction = -direction;
-						}
-					}
-				}
-
-			}
-			state = Stop;
-			prev_state = Working;
 			break;
 		}
 
-*//*
 		case(MODE1_CONFIG):
 		{
+			count = 0;
+			direction = 1;
 
+			state = MODE1_START;
+			prev_state = MODE1_CONFIG;
 			break;
 		}
 		case(MODE1_START):
 		{
-			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
-			position = optical_count;
-			count = 0;
-			direction = 1;
 
-			while(count < 2*pull_number)
+			Motor_Move(set_current, set_velocity, direction);
+			if(optical_count * optical_count > amplitude * amplitude)
 			{
-				Motor_Move(set_current, set_velocity, step, direction);
-				position = optical_count;
-				if ((set_default_position - position)*(set_default_position - position) > amplitude*amplitude)
+				direction = -1 * direction;
+				count++;
+			}
+			if(count >= pull_number * 2)
+			{
+				Motor_Move(set_current, set_velocity, direction);//возвращаемся в нулевое положение
+				if(optical_count > zero_position)
 				{
-					direction = -direction;
-					count ++;
+					Motor_Stop();
+					state = MODE1_STOP;
+					prev_state = MODE1_START;
 				}
 			}
-			Motor_Move(set_current, set_velocity, amplitude, direction);//возвращение в начальное положение
-			state = MODE1_STOP;
-			prev_state = MODE1_START;
+
+
 			break;
 		}
 		case(MODE1_STOP):
 		{
 			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+
 			break;
 		}
 		case(MODE2_CONFIG):
@@ -654,33 +716,31 @@ int main(void)
 		}
 		case(MODE2_START):
 		{
-			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
-			angle = encoder_position;
-			count = 0;
-			direction = 1;
-			while(count < 2*pull_number)
+			Motor_Move(set_current, set_velocity, 1);
+			tenso_data = hx711_value(&hx711_handle);
+			if (tenso_data > set_tenso_data)
 			{
-				Motor_Move(set_current, set_velocity, step, direction);
-				angle = encoder_position;
-				if ((set_angle - angle)*(set_angle - angle) > angle_amplitude*angle_amplitude)
-				{
-					direction = -direction;
-					count ++;
-				}
-			}
-			while(angle < set_angle)//возвращение в начальное положение
-			{
-				Motor_Move(set_current, set_velocity, step, direction);
-				angle = encoder_position;
+				Motor_Stop();
+				state = MODE2_STOP;
+				prev_state = MODE2_START;
 			}
 
-			state = MODE2_STOP;
-			prev_state = MODE2_START;
+
 			break;
 		}
 		case(MODE2_STOP):
 		{
 			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
+			z1 = 0;
+			while(z1 < 100000000)//выставить необходимую задержку
+			{
+				__NOP();
+				z1++;
+			}
+			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
+
+			state = MODE2_STOP;//подумать куда
+			prev_state = MODE2_STOP;
 			break;
 		}
 		case(MODE3_CONFIG):
@@ -690,15 +750,7 @@ int main(void)
 		}
 		case(MODE3_START):
 		{
-			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_SET);
-			//сжатие до обеспечения заданной нагрузки
-			//из состояния initialization имеем переменную set_tenso_data заданную через ПО
-			tenso_data = hx711_value(&hx711_handle);
-			while(tenso_data < set_tenso_data)
-			{
-				Motor_Move(set_current, set_velocity, step, 1);
-				tenso_data = hx711_value(&hx711_handle);
-			}
+
 			state = MODE3_STOP;
 			prev_state = MODE3_START;
 			break;
@@ -721,7 +773,7 @@ int main(void)
 		}
 	}
 
-*/
+
 
 	  if(new_data)
 	  {
@@ -766,15 +818,15 @@ int main(void)
 		  HAL_Delay(3000);
 		  modbus_send_simple(1, 0x1801, 0x0400); // Стоп
 */
-		  Encoder_UpdateRPM();
-		  char buffer1[64];
+		  //Encoder_UpdateRPM();
+		  /*char buffer1[64];
 		  char buffer2[64];
 		  int len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld, RPM: %.2f\r\n", encoder_position, encoder_rpm);
 		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len, HAL_MAX_DELAY);
 		  int len1 = snprintf(buffer2, sizeof(buffer2), "Motor_Pos: %ld, Motor_RPM: %.2f\r\n", motor_encoder_position, motor_encoder_rpm);
 		  HAL_UART_Transmit(&huart1, (uint8_t*)buffer2, len1, HAL_MAX_DELAY);
-		  HAL_Delay(100);
-		  new_data = false;
+		  //HAL_Delay(100);
+		  new_data = false;*/
 	  }
 
 

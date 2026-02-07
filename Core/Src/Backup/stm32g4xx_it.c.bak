@@ -25,7 +25,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include "port.h"
-#include "device.h"
+#include <device.h>
+#include "parser.h"
 extern UART_HandleTypeDef huart1;
 /* USER CODE END Includes */
 
@@ -62,6 +63,11 @@ volatile uint8_t motor_encoder_last_state = 0;
 extern bool limit_flag_1;
 extern bool limit_flag_2;
 bool limit_flag = 0;
+extern uint8_t rx_byte;
+extern volatile int stop_count;
+volatile GPIO_PinState limit_prev_13 = GPIO_PIN_RESET;
+volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
+
 
 /* USER CODE END PV */
 
@@ -332,11 +338,11 @@ void TIM4_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM4_IRQn 0 */
 	/* TIM Update event */
-	if(__HAL_TIM_GET_FLAG(&htim4, TIM_FLAG_UPDATE) != RESET && __HAL_TIM_GET_IT_SOURCE(&htim4, TIM_IT_UPDATE) !=RESET) {
+	/*if(__HAL_TIM_GET_FLAG(&htim4, TIM_FLAG_UPDATE) != RESET && __HAL_TIM_GET_IT_SOURCE(&htim4, TIM_IT_UPDATE) !=RESET) {
 		__HAL_TIM_CLEAR_IT(&htim4, TIM_IT_UPDATE);
 		if (!--downcounter)
 			prvvTIMERExpiredISR();
-	}
+	}/*
   /* USER CODE END TIM4_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
   /* USER CODE BEGIN TIM4_IRQn 1 */
@@ -378,13 +384,11 @@ void USART3_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
-  if(limit_flag == 0)
-  {
-	  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
-	  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
-  }
+
   /* USER CODE END EXTI15_10_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
   HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
@@ -406,9 +410,21 @@ void UART5_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if(huart == &huart1)
+    {
+        parser_process_byte(rx_byte);
+        HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // заново включаем прием
+    }
+}
+
+uint32_t tiks = 0 ;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	    uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
+	    /*uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
 	    uint8_t enc_b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
 	    uint8_t encoder_state = (enc_a << 1) | enc_b;
 
@@ -434,10 +450,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	            encoder_position--;
 	        }
 	        encoder_last_state = encoder_state;
-	    }
+	    }*/
 
 
-	    if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
+	    /*if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
 	    {
 	    	if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b10) ||
 	    	    (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b11) ||
@@ -456,61 +472,83 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	    	}
 	    	motor_encoder_last_state = motor_encoder_state;
 	    }
-
+*/
     if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
     {
         encoder_position = 0; // сброс позиции на индекс
     }
 
-
+    if (limit_flag != 1)
+    {
 	if(GPIO_Pin == GPIO_PIN_13)
 	{
 
-        // Выключаем EXTI, чтобы дребезг не дергал ISR
-		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13);
-        limit_flag_1 = !limit_flag_1;
-        limit_flag = 1;
+	    GPIO_PinState curr = HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13);
+
+	    //if (curr == GPIO_PIN_RESET && limit_prev_13 == GPIO_PIN_SET )
+	    //{
+	        limit_flag_1 = 1;
+	        //Motor_Stop();
+	        limit_flag = 1;
+	    //}
+
+	    limit_prev_13 = curr;
+
+
+
         // Сбрасываем таймер
-        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        //__HAL_TIM_SET_COUNTER(&htim2, 0);
 
         // Запускаем таймер на антидребезг
-        HAL_TIM_Base_Start_IT(&htim2);
+        //HAL_TIM_Base_Start_IT(&htim2);
+        tiks++;
 
-
-		new_data = 1;
-
-
-
-		//char msg = 'A'; // символ для отправки
-		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg, 1, HAL_MAX_DELAY);
 	}
 	else if(GPIO_Pin == GPIO_PIN_14)
 	{
 
-		limit_flag_2 = !limit_flag_2;
-		limit_flag = 1;
-		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_14);
-        // Выключаем EXTI, чтобы дребезг не дергал ISR
+	    GPIO_PinState curr = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
 
+	    if (curr != limit_prev_14)
+	    {
+	        limit_flag_2 = !limit_flag_2;
+	        limit_flag   = 1;
+	        new_data     = 1;
+	        //Motor_Stop();
+	    }
+
+	    limit_prev_14 = curr;
+		//__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_14);
+        // Выключаем EXTI, чтобы дребезг не дергал ISR
+		//HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
         // Сбрасываем таймер
-        __HAL_TIM_SET_COUNTER(&htim2, 0);
+        //__HAL_TIM_SET_COUNTER(&htim2, 0);
 
         // Запускаем таймер на антидребезг
-        HAL_TIM_Base_Start_IT(&htim2);
+        //HAL_TIM_Base_Start_IT(&htim2);
 
 
 		//char msg1 = 'B'; // символ для отправки
 		//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+        //t/iks = tiks;
 	}
-
+    }
 	new_data = true;
+	HAL_Delay(10);
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+
     if (htim->Instance == TIM2)
     {
+    	Motor_Stop();
+        HAL_TIM_Base_Stop_IT(&htim2);          // Остановить таймер
+        __HAL_TIM_SET_COUNTER(&htim2, 0);      // Сбросить счётчик
     	limit_flag = 0;
+		//Motor_Stop();
+		//stop_count ++;
+
     }
     if(htim->Instance == TIM5)
     {
