@@ -84,6 +84,9 @@ extern volatile uint32_t motor_last_tick;
 //Основные переменные характеризующие состояние стенда
 extern volatile int opt_lim_1;// пределы шкалы оптической линейки
 extern volatile int opt_lim_2;
+int encoder_lim_1;
+int encoder_lim_2;
+
 extern volatile bool limit_flag_1;//флаги срабатывания концевиков
 extern volatile bool limit_flag_2;
 
@@ -116,12 +119,20 @@ int opt_flag_2 = 0;
 int z1 = 0;
 uint8_t rx_byte = 0;
 int control = 0;
+int dir_ctrl = 1;
+int start_tick;
+int ramp = 0;
+float k_p = 0.2;
+int x1 = 0;
+float angle_velocity;
 
 #pragma pack(push, 1)
 
 typedef struct {
+    float min_angle;
+    float max_angle;
     float freq;
-    uint16_t count;
+    int count;
     float moment;
 } mode1_config_t;
 
@@ -173,7 +184,9 @@ enum states
 	MODE1_STOP = 0x12,
 	MODE2_CONFIG = 0x20,
 	MODE2_START = 0x21,
-	MODE2_STOP = 0x22,
+	MODE2_HOLD = 0x22,
+	MODE2_RETURN = 0x23,
+	MODE2_STOP = 0x24,
 	MODE3_CONFIG = 0x30,
 	MODE3_START = 0x31,
 	MODE3_STOP = 0x32,
@@ -232,19 +245,25 @@ void packet_callback(uint8_t msg_type, uint8_t *payload, uint8_t size)
     {
         case 0x10: // MODE1_CONFIG
         {
-            if (size >= sizeof(mode1_config_t))
-            {
-                mode1_config_t cfg;
+            //if (size >= sizeof(mode1_config_t))
+            //{
+
+        		mode1_config_t cfg;
                 memcpy(&cfg, payload, sizeof(cfg));
                 Mode1_Handle(&cfg);
-                uint8_t a = 0;
-                uint8_t b = 0;
-                uint8_t c = 0;
-                a = g_mode1_cfg.freq;
-                b = g_mode1_cfg.count;
-                c = g_mode1_cfg.moment;
+                float a = 0;
+                float b = 0;
+                float c = 0;
+                uint8_t d = 0;
+                float e = 0;
+                a = sizeof(mode1_config_t);
+                //a = g_mode1_cfg.min_angle;
+                //b = g_mode1_cfg.max_angle;
+                //c = g_mode1_cfg.freq;
+                //d = g_mode1_cfg.count;
+                //e = g_mode1_cfg.moment;
 
-            }
+            //}
             break;
         }
 
@@ -378,6 +397,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM4_Init();
   MX_TIM2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   parser_set_callback(packet_callback);
@@ -398,7 +418,7 @@ int main(void)
 
   HAL_Delay(500);
 
-
+  HAL_TIM_Base_Start_IT(&htim1);
 
   state = INITIALIZATION;
   while (1)
@@ -446,17 +466,34 @@ int main(void)
 			set_tenso_data = 0;
 			set_default_position = 0;
 			set_velocity = 50;
+			angle_velocity = 1;
 			set_angle = 0;
-			amplitude = 0;
+			amplitude = 10000;
+			pull_number = 5;
 			regime = MODE2_CONFIG;
 			Encoder_Init();
-
-			state = CALIBRATION;
+			Motor_Stop();
+			state = MODE1_CONFIG;
 			prev_state = INITIALIZATION;
 			break;
 		}
 		case(CALIBRATION):
 		{
+			int len;
+			char buffer1[64];
+
+
+			if (x1 < 1000000)
+			{
+				x1++;
+			}
+			else
+			{
+				int len2 = snprintf(buffer1, sizeof(buffer1), "Pos: %.2f, RPM: %.3f \n", angle, encoder_rpm);
+				//len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld\n", optical_count);
+				HAL_UART_Transmit(&huart1, (uint8_t*)buffer1, len2, HAL_MAX_DELAY);
+				x1 = 0;
+			}
 			switch(calib_state)
 			{
 			case(RIGHT_RUN_FAST_CALIB):
@@ -519,6 +556,8 @@ int main(void)
 				}
 				if(limit_flag_1)
 				{
+					opt_lim_1 = optical_count;
+					encoder_lim_1 = encoder_position;
 					calib_state = RIGHT_LOGIC;
 					calib_state_prev = RIGHT_RUN_SLOW_CALIB;
 					motion_ctrl = 1;
@@ -535,6 +574,8 @@ int main(void)
 				}
 				if(limit_flag_2)
 				{
+					opt_lim_2 = optical_count;
+					encoder_lim_2 = encoder_position;
 					calib_state = LEFT_LOGIC;
 					calib_state_prev = LEFT_RUN_SLOW_CALIB;
 					motion_ctrl = 1;
@@ -544,7 +585,7 @@ int main(void)
 			case (RIGHT_LOGIC):
 			{
 				limit_flag_1 = 0;
-				limit_flag_2 =0;
+				limit_flag_2 = 0;
 				if(calib_state_prev == RIGHT_RUN_FAST_CALIB)
 				{
 					calib_state = LEFT_RUN_FAST_CALIB;
@@ -568,7 +609,7 @@ int main(void)
 			{
 				motion_ctrl = 1;
 				limit_flag_1 = 0;
-				limit_flag_2 =0;
+				limit_flag_2 = 0;
 				if(calib_state_prev == LEFT_RUN_FAST_CALIB)
 				{
 					calib_state = RIGHT_RUN_FAST_CALIB;
@@ -589,10 +630,13 @@ int main(void)
 			{
 				//state = ACK;
 				//prev_state = CALIBRATION;
-				Motor_Move(set_current, set_velocity, 1);
-				HAL_Delay(5000);
-				Motor_Stop();
-				state = ACK;
+				//Motor_Move(set_current, set_velocity, 1);
+				//HAL_Delay(5000);
+				//if (optical_count < set_default_position)
+				//{
+					Motor_Stop();
+					state = ACK;
+				//}
 				break;
 			}
 			}
@@ -674,33 +718,65 @@ int main(void)
 		case(MODE1_CONFIG):
 		{
 			count = 0;
+			set_default_position = optical_count;
 			direction = 1;
-
+			motion_ctrl = 1;
+			angle_velocity = 20;
 			state = MODE1_START;
 			prev_state = MODE1_CONFIG;
+			start_tick = HAL_GetTick();
 			break;
 		}
 		case(MODE1_START):
 		{
 
-			Motor_Move(set_current, set_velocity, direction);
-			if(optical_count * optical_count > amplitude * amplitude)
+
+			//Motor_Move(set_current, k_p * (ramp*set_velocity/10 - encoder_position + encoder_lim_2) , direction);
+			//Motor_Move(set_current, k_p * (angle_velocity - encoder_position + encoder_lim_2) , direction);
+			Motor_Move(set_current, angle_velocity + k_p * (angle_velocity - encoder_rpm) , direction);
+			//Motor_Move(set_current, angle_velocity , direction);
+			//ramp = ramp + direction;
+			HAL_Delay(10);
+
+			char buffer3[64];
+			int len3 = snprintf(buffer3, sizeof(buffer3), "Pos: %.2f, RPM: %.3f \n", angle, encoder_rpm);
+			HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+
+			if (optical_count * optical_count < amplitude * amplitude)
+			{
+				dir_ctrl = 1;
+			}
+
+			if((optical_count * optical_count > amplitude * amplitude) && (dir_ctrl == 1))
 			{
 				direction = -1 * direction;
 				count++;
+				motion_ctrl = 1;
+				dir_ctrl = 0;
+				start_tick = HAL_GetTick();
 			}
 			if(count >= pull_number * 2)
 			{
 				Motor_Move(set_current, set_velocity, direction);//возвращаемся в нулевое положение
-				if(optical_count > zero_position)
+				if(optical_count < set_default_position)
 				{
 					Motor_Stop();
 					state = MODE1_STOP;
 					prev_state = MODE1_START;
 				}
 			}
-
-
+			if (x1 < 100000)
+			{
+				x1++;
+			}
+			else
+			{
+				char buffer3[64];
+				int len3 = snprintf(buffer3, sizeof(buffer3), "Pos: %.2f, RPM: %.3f \n", angle, encoder_rpm);
+				//len = snprintf(buffer1, sizeof(buffer1), "Pos: %ld\n", optical_count);
+				HAL_UART_Transmit(&huart1, (uint8_t*)buffer3, len3, HAL_MAX_DELAY);
+				x1 = 0;
+			}
 			break;
 		}
 		case(MODE1_STOP):
@@ -711,7 +787,8 @@ int main(void)
 		}
 		case(MODE2_CONFIG):
 		{
-
+			state = MODE2_START;
+			prev_state = MODE2_CONFIG;
 			break;
 		}
 		case(MODE2_START):
@@ -724,11 +801,9 @@ int main(void)
 				state = MODE2_STOP;
 				prev_state = MODE2_START;
 			}
-
-
 			break;
 		}
-		case(MODE2_STOP):
+		case(MODE2_HOLD):
 		{
 			HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
 			z1 = 0;
@@ -743,6 +818,21 @@ int main(void)
 			prev_state = MODE2_STOP;
 			break;
 		}
+		case(MODE2_RETURN):
+		{
+			Motor_Move(set_current, set_velocity, -1);//возвращаемся в нулевое положение
+			if(optical_count > set_default_position)
+			{
+				Motor_Stop();
+				state = MODE1_STOP;
+				prev_state = MODE1_START;
+			}
+		}
+		case(MODE2_STOP):
+		{
+
+		}
+
 		case(MODE3_CONFIG):
 		{
 

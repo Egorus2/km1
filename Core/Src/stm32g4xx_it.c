@@ -82,6 +82,7 @@ volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim4;
 extern UART_HandleTypeDef huart5;
@@ -318,6 +319,65 @@ void EXTI9_5_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles TIM1 break interrupt and TIM15 global interrupt.
+  */
+void TIM1_BRK_TIM15_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_BRK_TIM15_IRQn 0 */
+
+  /* USER CODE END TIM1_BRK_TIM15_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_BRK_TIM15_IRQn 1 */
+
+  /* USER CODE END TIM1_BRK_TIM15_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 update interrupt and TIM16 global interrupt.
+  */
+void TIM1_UP_TIM16_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
+  Encoder_UpdateRPM();
+  int a = HAL_GetTick();
+  a = HAL_GetTick();
+
+  /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
+
+  /* USER CODE END TIM1_UP_TIM16_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 trigger and commutation interrupts and TIM17 global interrupt.
+  */
+void TIM1_TRG_COM_TIM17_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_TRG_COM_TIM17_IRQn 0 */
+
+  /* USER CODE END TIM1_TRG_COM_TIM17_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_TRG_COM_TIM17_IRQn 1 */
+
+  /* USER CODE END TIM1_TRG_COM_TIM17_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 capture compare interrupt.
+  */
+void TIM1_CC_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_CC_IRQn 0 */
+
+  /* USER CODE END TIM1_CC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_CC_IRQn 1 */
+
+  /* USER CODE END TIM1_CC_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM2 global interrupt.
   */
 void TIM2_IRQHandler(void)
@@ -384,7 +444,7 @@ void USART3_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
-	uint8_t curr14 = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)== GPIO_PIN_RESET);
+	uint8_t curr14 = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET);
 	uint8_t curr13 = (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == GPIO_PIN_RESET);
 	if (curr13)
 		{
@@ -413,11 +473,10 @@ void EXTI15_10_IRQHandler(void)
 		else if(curr14)
 		{
 
-
-		        limit_flag_2 = !limit_flag_2;
+				GPIO_PinState curr2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
+		        limit_flag_2 = 1;
 		        limit_flag   = 1;
-		        new_data     = 1;
-
+		        limit_prev_14 = curr2;
 
 
 	        // Выключаем EXTI, чтобы дребезг не дергал ISR
@@ -472,7 +531,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 uint32_t tiks = 0 ;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	    /*uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
+	    uint8_t enc_a = HAL_GPIO_ReadPin(ENC_A_ITR0_GPIO_Port, ENC_A_ITR0_Pin);
 	    uint8_t enc_b = HAL_GPIO_ReadPin(ENC_B_ITR1_GPIO_Port, ENC_B_ITR1_Pin);
 	    uint8_t encoder_state = (enc_a << 1) | enc_b;
 
@@ -498,10 +557,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	            encoder_position--;
 	        }
 	        encoder_last_state = encoder_state;
-	    }*/
+	    }
 
 
-	    /*if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
+	    if (GPIO_Pin == MOTOR_ENC_A_ITR11_Pin || GPIO_Pin == MOTOR_ENC_B_ITR9_Pin)
 	    {
 	    	if ((motor_encoder_last_state == 0b00 && motor_encoder_state == 0b10) ||
 	    	    (motor_encoder_last_state == 0b10 && motor_encoder_state == 0b11) ||
@@ -520,7 +579,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	    	}
 	    	motor_encoder_last_state = motor_encoder_state;
 	    }
-*/
+
     if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
     {
         encoder_position = 0; // сброс позиции на индекс

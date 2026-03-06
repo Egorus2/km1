@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>KM Stand</title>
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    .row { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+    input { width: 120px; padding: 6px; }
+    button { padding: 8px 12px; }
+    #log { height: 200px; overflow: auto; background: #fafafa; padding: 8px; border-radius: 10px; border: 1px solid #eee; }
+    canvas { border: 1px solid #eee; border-radius: 10px; }
+
+    .log-info { color:#444; white-space: pre-wrap; }
+    .log-warn { color:#b58900; white-space: pre-wrap; }
+    .log-alarm { color:#dc322f; font-weight:bold; white-space: pre-wrap; }
+    .log-system { color:#268bd2; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>KM Stand — Web UI</h2>
+
+  <div class="row card">
+    <label>Port</label><input id="port" placeholder="/dev/ttyUSB0" />
+    <label>Baud</label><input id="baud" value="115200" />
+    <label>Simulation</label><input id="sim" type="checkbox" checked />
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="status()">Status</button>
+  </div>
+
+  <div class="row card">
+    <b>Mode 1 config</b>
+    <label>min°</label><input id="m1_min" value="50" />
+    <label>max°</label><input id="m1_max" value="180" />
+    <label>freq Hz</label><input id="m1_freq" value="0.5" />
+    <label>cycles</label><input id="m1_cycles" value="630000" />
+    <label>moment Nm</label><input id="m1_moment" value="89" />
+  </div>
+
+  <div class="row card">
+    <b>Safety</b>
+    <label>temp max</label><input id="s_tempmax" value="80" />
+    <label>temp resume</label><input id="s_tempres" value="70" />
+    <label>load max N</label><input id="s_loadmax" value="5000" />
+    <label>angle tol°</label><input id="s_angtol" value="5" />
+    <label>auto resume</label><input id="s_autores" type="checkbox" />
+    <button onclick="startMode1()">Start Mode1</button>
+    <button onclick="stopTest()">Stop</button>
+  </div>
+
+  <div class="row card">
+    <div><b>Live:</b></div>
+
+    <div>Status: <b id="v_status">idle</b></div>
+    <div>Cycles: <b id="v_cycles">0</b> / <span id="v_cycles_target">—</span></div>
+
+    <div>Angle: <span id="v_angle">—</span></div>
+    <div>Pos: <span id="v_pos">—</span></div>
+    <div>Load: <span id="v_load">—</span></div>
+    <div>Temp: <span id="v_temp">—</span></div>
+
+    <div>Test ID: <span id="v_test">—</span></div>
+  </div>
+
+  <div class="row">
+    <canvas id="plot" width="1000" height="260"></canvas>
+  </div>
+
+  <div class="card">
+    <b>Log</b>
+    <div id="log"></div>
+  </div>
+
+<script>
+  let ws = null;
+  let currentTestId = null;
+
+  const logEl = document.getElementById("log");
+
+  function appendLogLine(className, msg) {
+    const div = document.createElement("div");
+    div.className = className;
+    div.textContent = msg;
+    logEl.appendChild(div);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function logPlain(msg) {
+    appendLogLine("log-info", msg);
+  }
+
+  function logEvent(level, msg) {
+    const cls = "log-" + (level || "info");
+    appendLogLine(cls, msg);
+  }
+
+  function logSystem(msg) {
+    appendLogLine("log-system", msg);
+  }
+
+  async function api(path, method="GET", body=null) {
+    const res = await fetch("/api/" + path, {
+      method,
+      headers: body ? {"Content-Type":"application/json"} : {},
+      body: body ? JSON.stringify(body) : null
+    });
+
+    // если сервер вернул не-JSON (ошибка), покажем текст
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      const txt = await res.text();
+      throw new Error(`API ${path} non-JSON response: ${txt}`);
+    }
+    return await res.json();
+  }
+
+async function connect() {
+  try {
+    const port = document.getElementById("port").value || null;
+    const baud = parseInt(document.getElementById("baud").value || "115200", 10);
+    const simulation = document.getElementById("sim").checked;
+
+    const st = await api("connect", "POST", { port, baud, simulation });
+
+    if (st && st.ok === false) {
+      logEvent("alarm", "CONNECT ERROR: " + (st.error || "unknown"));
+      // на всякий случай закрыть WS, если был открыт
+      if (ws) ws.close();
+      ws = null;
+      return;
+    }
+
+    logSystem("CONNECTED: " + JSON.stringify(st));
+
+    if (st.current_test) {
+      currentTestId = st.current_test.id;
+      document.getElementById("v_test").textContent = currentTestId;
+      document.getElementById("v_status").textContent = st.current_test.status || "running";
+      document.getElementById("v_cycles").textContent = st.current_test.cycles_done ?? 0;
+      document.getElementById("v_cycles_target").textContent = st.current_test.cycles_target ?? "—";
+    } else {
+      currentTestId = null;
+      document.getElementById("v_test").textContent = "—";
+      document.getElementById("v_status").textContent = "idle";
+      document.getElementById("v_cycles").textContent = "0";
+      document.getElementById("v_cycles_target").textContent = "—";
+    }
+
+    openWS();
+  } catch (e) {
+    logEvent("alarm", "CONNECT ERROR: " + e.message);
+    if (ws) ws.close();
+    ws = null;
+  }
+}
+
+  async function disconnect() {
+    try {
+      await api("disconnect", "POST");
+      logSystem("DISCONNECTED");
+    } catch (e) {
+      logEvent("alarm", "DISCONNECT ERROR: " + e.message);
+    }
+
+    if (ws) ws.close();
+    ws = null;
+
+    document.getElementById("v_status").textContent = "idle";
+  }
+
+  async function status() {
+    try {
+      const st = await api("status");
+      logSystem("STATUS: " + JSON.stringify(st));
+
+      if (st.current_test) {
+        currentTestId = st.current_test.id;
+        document.getElementById("v_test").textContent = currentTestId;
+        document.getElementById("v_status").textContent = st.current_test.status || "running";
+        document.getElementById("v_cycles").textContent = st.current_test.cycles_done ?? 0;
+        document.getElementById("v_cycles_target").textContent = st.current_test.cycles_target ?? "—";
+      } else {
+        document.getElementById("v_status").textContent = "idle";
+      }
+    } catch (e) {
+      logEvent("alarm", "STATUS ERROR: " + e.message);
+    }
+  }
+
+  async function startMode1() {
+    try {
+      const config = {
+        min_angle_deg: parseFloat(document.getElementById("m1_min").value),
+        max_angle_deg: parseFloat(document.getElementById("m1_max").value),
+        freq_hz: parseFloat(document.getElementById("m1_freq").value),
+        cycles: parseInt(document.getElementById("m1_cycles").value, 10),
+        moment_nm: parseFloat(document.getElementById("m1_moment").value),
+      };
+
+      const safety = {
+        temp_max_c: parseFloat(document.getElementById("s_tempmax").value),
+        temp_resume_c: parseFloat(document.getElementById("s_tempres").value),
+        load_max_n: parseFloat(document.getElementById("s_loadmax").value),
+        angle_tolerance_deg: parseFloat(document.getElementById("s_angtol").value),
+        allow_auto_resume: document.getElementById("s_autores").checked,
+      };
+
+      const r = await api("test/mode1/start", "POST", {config, safety});
+      currentTestId = r.test.id;
+
+      document.getElementById("v_test").textContent = currentTestId;
+      document.getElementById("v_status").textContent = "running";
+      document.getElementById("v_cycles").textContent = "0";
+      document.getElementById("v_cycles_target").textContent = config.cycles;
+
+      logSystem("START MODE1: test_id=" + currentTestId);
+
+      // если WS ещё не открыт — откроем
+      if (!ws || ws.readyState !== WebSocket.OPEN) openWS();
+    } catch (e) {
+      logEvent("alarm", "START ERROR: " + e.message);
+    }
+  }
+
+  async function stopTest() {
+    try {
+      const r = await api("test/stop", "POST");
+      logSystem("STOP: " + JSON.stringify(r));
+      document.getElementById("v_status").textContent = "stopped";
+    } catch (e) {
+      logEvent("alarm", "STOP ERROR: " + e.message);
+    }
+  }
+
+  function openWS() {
+    if (ws) ws.close();
+
+    const wsUrl = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/telemetry";
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => logSystem("WS open");
+    ws.onclose = () => logSystem("WS close");
+    ws.onerror = () => logEvent("warn", "WS error");
+
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+
+      // ===== TELEMETRY =====
+      if (msg.type === "telemetry") {
+        const s = msg.sample;
+
+        document.getElementById("v_angle").textContent = s.angle_deg.toFixed(2) + "°";
+        document.getElementById("v_pos").textContent = s.pos_mm.toFixed(2) + "mm";
+        document.getElementById("v_load").textContent = s.load_n.toFixed(1) + "N";
+        document.getElementById("v_temp").textContent = s.temp_c.toFixed(2) + "°C";
+
+        pushPoint(s);
+        return;
+      }
+
+      // ===== CYCLES =====
+      if (msg.type === "cycles") {
+        document.getElementById("v_cycles").textContent = msg.cycles_done;
+        document.getElementById("v_cycles_target").textContent = (msg.cycles_target ?? "∞");
+        return;
+      }
+
+      // ===== TEST STATE =====
+      if (msg.type === "test") {
+        // msg.event: started/stopped/paused/resumed
+        document.getElementById("v_status").textContent = msg.event;
+        logSystem(`TEST ${msg.event}${msg.reason ? " ("+msg.reason+")" : ""}`);
+        return;
+      }
+
+      // ===== EVENTS / ALARMS =====
+      if (msg.type === "event") {
+        logEvent(msg.level, `[${msg.event_type}] ${msg.message}`);
+        return;
+      }
+      if (msg.type === "status") {
+        const st = msg.data;
+
+        log("STATUS(SNAPSHOT): " + JSON.stringify(st));
+
+        document.getElementById("v_test").textContent =
+          st.current_test ? st.current_test.id : "—";
+
+        document.getElementById("v_status").textContent =
+          st.current_test ? st.current_test.status : "idle";
+
+        // (опционально) отобразить факт реального порта/симуляции если ты их добавлял в status()
+        // например: st.port_open / st.driver_simulation
+        return;
+      }
+      // ===== ACK =====
+      if (msg.type === "ack") {
+        logSystem("ACK " + msg.payload_hex);
+        return;
+      }
+
+      // прочее
+      if (msg.type) {
+        logPlain("WS: " + JSON.stringify(msg));
+      }
+    };
+  }
+
+  // super simple plot (angle + temp)
+  const canvas = document.getElementById("plot");
+  const ctx = canvas.getContext("2d");
+  const points = []; // {t, angle, temp}
+  let t0 = null;
+
+  function pushPoint(s) {
+    if (t0 === null) t0 = s.ts_ms;
+    const t = (s.ts_ms - t0) / 1000.0;
+    points.push({t, angle: s.angle_deg, temp: s.temp_c});
+    if (points.length > 500) points.shift();
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    ctx.fillText("Angle (верх) + Temp (низ), последние ~500 точек", 10, 16);
+
+    if (points.length < 2) return;
+
+    const tMin = points[0].t, tMax = points[points.length-1].t;
+    const angleMin = Math.min(...points.map(p=>p.angle));
+    const angleMax = Math.max(...points.map(p=>p.angle));
+    const tempMin = Math.min(...points.map(p=>p.temp));
+    const tempMax = Math.max(...points.map(p=>p.temp));
+
+    // angle plot top half
+    const topY0 = 30, topY1 = canvas.height/2 - 10;
+    ctx.beginPath();
+    for (let i=0;i<points.length;i++) {
+      const p = points[i];
+      const x = 10 + (canvas.width-20) * (p.t - tMin) / Math.max(0.001, (tMax - tMin));
+      const y = topY1 - (topY1-topY0) * (p.angle - angleMin) / Math.max(0.001, (angleMax-angleMin));
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // temp plot bottom half
+    const botY0 = canvas.height/2 + 20, botY1 = canvas.height - 10;
+    ctx.beginPath();
+    for (let i=0;i<points.length;i++) {
+      const p = points[i];
+      const x = 10 + (canvas.width-20) * (p.t - tMin) / Math.max(0.001, (tMax - tMin));
+      const y = botY1 - (botY1-botY0) * (p.temp - tempMin) / Math.max(0.001, (tempMax-tempMin));
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    ctx.fillText(`angle: ${angleMin.toFixed(1)}..${angleMax.toFixed(1)}`, 10, topY1+14);
+    ctx.fillText(`temp: ${tempMin.toFixed(1)}..${tempMax.toFixed(1)}`, 10, botY1);
+  }
+</script>
+</body>
+</html>

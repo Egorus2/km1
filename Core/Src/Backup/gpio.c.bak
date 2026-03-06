@@ -66,15 +66,19 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PB14 */
   GPIO_InitStruct.Pin = GPIO_PIN_14;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_old_Pin PD13 OPT_LINEAR_Z_ITR5_Pin OPT_LINEAR_B_ITR6_Pin
-                           OPT_LINEAR_A_ITR7_Pin */
-  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_old_Pin|GPIO_PIN_13|OPT_LINEAR_Z_ITR5_Pin|OPT_LINEAR_B_ITR6_Pin
-                          |OPT_LINEAR_A_ITR7_Pin;
+  /*Configure GPIO pins : MOTOR_ENC_A_ITR11_old_Pin OPT_LINEAR_Z_ITR5_Pin OPT_LINEAR_B_ITR6_Pin OPT_LINEAR_A_ITR7_Pin */
+  GPIO_InitStruct.Pin = MOTOR_ENC_A_ITR11_old_Pin|OPT_LINEAR_Z_ITR5_Pin|OPT_LINEAR_B_ITR6_Pin|OPT_LINEAR_A_ITR7_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PD13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 

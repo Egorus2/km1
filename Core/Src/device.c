@@ -5,8 +5,9 @@
 #include "mbport.h"
 #include "hx711.h"
 
-#define ENCODER_PPR 1000
+#define ENCODER_PPR 4000
 #define TIMER_PERIOD_MS 100
+#define RPM_WINDOW 5
 
 volatile hx711_t hx711_handle;
 volatile long int optical_count;
@@ -20,6 +21,12 @@ volatile int32_t motor_last_position = 0;     // позиция на преды�
 volatile float motor_encoder_rpm = 0.0f;      // скорость вращения
 volatile uint32_t motor_last_tick = 0;
 
+
+float angle_buffer[RPM_WINDOW];
+int buffer_index = 0;
+bool buffer_filled = false;
+float sum_ticks;
+float sum_time;
 
 //Основные переменные характеризующие состояние стенда
 volatile int opt_lim_1;// пределы шкалы оптической линейки
@@ -57,14 +64,32 @@ void Encoder_Init(void)
 
 void Encoder_UpdateRPM(void)
 {
-    uint32_t current_tick = HAL_GetTick();
-    int32_t delta_pos = encoder_position - last_position;
 
-    // RPM = (Δимпульсы * 60000) / (PPR * Δt(ms))
-    encoder_rpm = (delta_pos * 60000.0f) / (ENCODER_PPR * (current_tick - last_tick));
+    //float delta_pos = 360*((float)encoder_position - (float)last_position)/4000;
+    float delta_time_ms = 100;
 
-    last_position = encoder_position;
-    last_tick = current_tick;
+    angle = 360*(float)encoder_position/4000;
+
+    //encoder_rpm = 60 * 1000 * (angle - last_position) / (delta_time_ms) / 360;
+
+    angle_buffer[buffer_index] = angle;
+    buffer_index++;
+
+    if (buffer_index >= RPM_WINDOW) {
+        buffer_index = 0;
+        buffer_filled = true;
+    }
+
+    if (buffer_filled) {
+        float angle_old = angle_buffer[buffer_index];
+
+        float delta_angle = angle - angle_old;
+        float total_time = delta_time_ms * RPM_WINDOW;
+
+        encoder_rpm = 60.0f * 1000.0f * delta_angle / total_time / 360.0f;
+    }
+
+
 
     uint32_t motor_current_tick = HAL_GetTick();
     int32_t motor_delta_pos = motor_encoder_position - motor_last_position;
