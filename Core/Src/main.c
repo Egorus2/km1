@@ -112,7 +112,7 @@ int regime;
 int direction;
 int count = 0;
 int pull_number;
-int set_current = 20;
+int set_current = 60;
 volatile int stop_count = 0;
 int opt_flag_1 = 0;
 int opt_flag_2 = 0;
@@ -396,7 +396,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
   MX_TIM4_Init();
-  MX_TIM2_Init();
+  //MX_TIM2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
@@ -465,7 +465,7 @@ int main(void)
 			//Добавить вывод всех данных
 			set_tenso_data = 0;
 			set_default_position = 0;
-			set_velocity = 50;
+			set_velocity = 100;
 			angle_velocity = 1;
 			set_angle = 0;
 			amplitude = 10000;
@@ -473,7 +473,7 @@ int main(void)
 			regime = MODE2_CONFIG;
 			Encoder_Init();
 			Motor_Stop();
-			state = MODE1_CONFIG;
+			state = CALIBRATION;
 			prev_state = INITIALIZATION;
 			break;
 		}

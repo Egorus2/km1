@@ -164,6 +164,8 @@ void modbus_send_simple(uint8_t slave_id, uint16_t reg_addr, uint16_t value)
 
 void Motor_Move(int current, int velocity, int direction)
 {
+	  modbus_send_simple(1, 0x0191, current);
+	  //modbus_send_simple(1, 0x2001, current);
 	  modbus_send_simple(1, 0x6200, 0x0002);
 	  modbus_send_simple(1, 0x6203, velocity*direction);
 	  modbus_send_simple(1, 0x6002, 0x0010);

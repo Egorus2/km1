@@ -7,5 +7,5 @@
 ../Core/Src/device.c:125:10:CRC16	24	static
 ../Core/Src/device.c:145:6:modbus_send_simple	32	static
 ../Core/Src/device.c:165:6:Motor_Move	24	static
-../Core/Src/device.c:171:6:Motor_Stop	8	static
-../Core/Src/device.c:176:6:Sensor_Poll	8	static
+../Core/Src/device.c:173:6:Motor_Stop	8	static
+../Core/Src/device.c:178:6:Sensor_Poll	8	static

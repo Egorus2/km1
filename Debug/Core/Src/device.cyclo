@@ -7,5 +7,5 @@
 ../Core/Src/device.c:125:10:CRC16	4
 ../Core/Src/device.c:145:6:modbus_send_simple	1
 ../Core/Src/device.c:165:6:Motor_Move	1
-../Core/Src/device.c:171:6:Motor_Stop	1
-../Core/Src/device.c:176:6:Sensor_Poll	1
+../Core/Src/device.c:173:6:Motor_Stop	1
+../Core/Src/device.c:178:6:Sensor_Poll	1
