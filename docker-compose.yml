@@ -42,7 +42,10 @@ services:
       daphne -b 0.0.0.0 -p 8000 kmstand.asgi:application
       "
     volumes:
+      - .:/app
       - ./frontend:/frontend:ro
+      - /dev:/dev
+    privileged: true
 
   worker:
     build: ./backend
@@ -50,6 +53,8 @@ services:
       DJANGO_SETTINGS_MODULE: kmstand.settings
       DATABASE_URL: postgres://kmstand:kmstand@db:5432/kmstand
       REDIS_URL: redis://redis:6379/0
+    volumes:
+      - .:/app
     depends_on:
       db:
         condition: service_healthy

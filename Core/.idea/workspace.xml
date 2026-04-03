@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="f1e55df9-a4e3-4312-a838-baa1da080a77" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Src/device.c" beforeDir="false" afterPath="$PROJECT_DIR$/Src/device.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Src/main.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Src/stm32g4xx_it.c" beforeDir="false" afterPath="$PROJECT_DIR$/Src/stm32g4xx_it.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Debug/Core/Src/device.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/../Debug/Core/Src/device.cyclo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Debug/Core/Src/device.su" beforeDir="false" afterPath="$PROJECT_DIR$/../Debug/Core/Src/device.su" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.cyclo" beforeDir="false" afterPath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.cyclo" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.o" beforeDir="false" afterPath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.su" beforeDir="false" afterPath="$PROJECT_DIR$/../Debug/Core/Src/stm32g4xx_it.su" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../backend/stand/services/manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/../backend/stand/services/manager.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/../docker-compose.yml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 0
+}]]></component>
+  <component name="ProjectId" id="3BOT6WX80pvPZ09fDhmm09rKnfK" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "achuev-ddi-operating__mode",
+    "last_opened_file_path": "C:/Users/AndreyChuev/Desktop/KMStand/kmstand/Core"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-5a2391486177-d3b881c8e49f-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-233.13763.11" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f1e55df9-a4e3-4312-a838-baa1da080a77" name="Changes" comment="" />
+      <created>1774358941556</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1774358941556</updated>
+    </task>
+    <servers />
+  </component>
+</project>

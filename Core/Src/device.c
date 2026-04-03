@@ -20,7 +20,8 @@ volatile int32_t motor_encoder_position = 0;  // текущая позиция �
 volatile int32_t motor_last_position = 0;     // позиция на предыдущем измерении
 volatile float motor_encoder_rpm = 0.0f;      // скорость вращения
 volatile uint32_t motor_last_tick = 0;
-
+extern volatile float encoder_lim_1;
+extern volatile int state;
 
 float angle_buffer[RPM_WINDOW];
 int buffer_index = 0;
@@ -67,9 +68,14 @@ void Encoder_UpdateRPM(void)
 
     //float delta_pos = 360*((float)encoder_position - (float)last_position)/4000;
     float delta_time_ms = 100;
-
-    angle = 360*(float)encoder_position/4000;
-
+    if (state == 0x01)
+    {
+    	angle = -360*(float)encoder_position/4000;
+    }
+    else
+    {
+    	angle = -360*(float)encoder_position/4000 - encoder_lim_1 + 180;
+    }
     //encoder_rpm = 60 * 1000 * (angle - last_position) / (delta_time_ms) / 360;
 
     angle_buffer[buffer_index] = angle;

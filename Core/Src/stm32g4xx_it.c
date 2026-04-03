@@ -68,6 +68,7 @@ extern volatile int stop_count;
 volatile GPIO_PinState limit_prev_13 = GPIO_PIN_RESET;
 volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
 
+extern volatile int state;
 
 /* USER CODE END PV */
 
@@ -543,46 +544,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		{
 
 		    GPIO_PinState curr = HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13);
-
-		    //if (curr == GPIO_PIN_RESET && limit_prev_13 == GPIO_PIN_SET )
-		    //{
-		        limit_flag_1 = 1;
-		        //Motor_Stop();
-		        limit_flag = 1;
-		    //}
-
+		    limit_flag_1 = 1;
+		    limit_flag = 1;
 		    limit_prev_13 = curr;
-
-
-
-	        // Сбрасываем таймер
-	        //__HAL_TIM_SET_COUNTER(&htim2, 0);
-
-	        // Запускаем таймер на антидребезг
-	        //HAL_TIM_Base_Start_IT(&htim2);
-
+		    if (state != 0x01)
+		    {
+		    	state = 0x33;
+		    }
 
 		}
 		else if(curr14)
 		{
 
-				GPIO_PinState curr2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
-		        limit_flag_2 = 1;
-		        limit_flag   = 1;
-		        limit_prev_14 = curr2;
-
-
-	        // Выключаем EXTI, чтобы дребезг не дергал ISR
-			//HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
-	        // Сбрасываем таймер
-	        //__HAL_TIM_SET_COUNTER(&htim2, 0);
-
-	        // Запускаем таймер на антидребезг
-	       // HAL_TIM_Base_Start_IT(&htim2);
-
-
-			//char msg1 = 'B'; // символ для отправки
-			//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
+			GPIO_PinState curr2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
+		    limit_flag_2 = 1;
+		    limit_flag   = 1;
+		    limit_prev_14 = curr2;
+			if (state != 0x01)
+			{
+			    state = 0x33;
+			}
 
 		}
 	}
@@ -594,12 +575,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (htim->Instance == TIM2)
     {
-    	//Motor_Stop();
-        //HAL_TIM_Base_Stop_IT(&htim2);          // Остановить таймер
-        //__HAL_TIM_SET_COUNTER(&htim2, 0);      // Сбросить счётчик
+
     	limit_flag = 0;
-		//Motor_Stop();
-		//stop_count ++;
 
     }
     if(htim->Instance == TIM5)
