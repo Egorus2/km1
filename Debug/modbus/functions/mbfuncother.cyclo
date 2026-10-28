@@ -1,2 +1,0 @@
-../modbus/functions/mbfuncother.c:53:1:eMBSetSlaveID	4
-../modbus/functions/mbfuncother.c:81:1:eMBFuncReportSlaveID	1

@@ -1,8 +1,0 @@
-../modbus/mb.c:130:1:eMBInit	7
-../modbus/mb.c:226:1:eMBRegisterCB	10
-../modbus/mb.c:273:1:eMBClose	3
-../modbus/mb.c:292:1:eMBEnable	2
-../modbus/mb.c:310:1:eMBDisable	3
-../modbus/mb.c:332:1:eMBPoll	13
-../modbus/mb.c:414:10:Modbus_CRC16	4
-../modbus/mb.c:426:6:Modbus_WriteSingleRegister	1

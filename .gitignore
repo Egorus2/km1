@@ -16,3 +16,31 @@ Debug/**/*.cyclo
 
 # Иногда можно игнорировать весь Debug
 Debug/
+
+# Дополнительные каталоги сборки
+/Release/
+/output/
+
+# Кеш и виртуальные окружения Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Локальные данные и логи
+/km_stand_control_log.csv
+*.log
+*.sqlite3
+*.sqlite3-journal
+.env
+.env.*
+!.env.example
+
+# Локальное состояние IDE и временные файлы
+.idea/workspace.xml
+.metadata/
+*.swp
+*~
+.DS_Store
+Thumbs.db

@@ -1,4 +1,0 @@
-../modbus/BARE/port/porttimer.c:39:1:xMBPortTimersInit	1
-../modbus/BARE/port/porttimer.c:60:1:vMBPortTimersEnable	1
-../modbus/BARE/port/porttimer.c:68:1:vMBPortTimersDisable	1
-../modbus/BARE/port/porttimer.c:77:6:prvvTIMERExpiredISR	1

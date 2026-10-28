@@ -1,8 +1,0 @@
-../modbus/rtu/mbrtu.c:81:1:eMBRTUInit	4
-../modbus/rtu/mbrtu.c:126:1:eMBRTUStart	1
-../modbus/rtu/mbrtu.c:142:1:eMBRTUStop	1
-../modbus/rtu/mbrtu.c:151:1:eMBRTUReceive	3
-../modbus/rtu/mbrtu.c:187:1:eMBRTUSend	2
-../modbus/rtu/mbrtu.c:230:1:xMBRTUReceiveFSM	6
-../modbus/rtu/mbrtu.c:290:1:xMBRTUTransmitFSM	4
-../modbus/rtu/mbrtu.c:328:1:xMBRTUTimerT35Expired	7

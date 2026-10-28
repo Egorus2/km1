@@ -63,7 +63,7 @@ float set_angle; //заданное значение угла
 
 extern UART_HandleTypeDef huart5;
 extern UART_HandleTypeDef huart1;
-extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart2;
 
 void Encoder_ResetRPMFilter(void)
 {
@@ -249,7 +249,7 @@ void modbus_send_simple(uint8_t slave_id, uint16_t reg_addr, uint16_t value)
     tx_data[6] = (crc & 0xFF);
     tx_data[7] = (crc >> 8);
 
-    motor_last_tx_status = HAL_UART_Transmit_IT(&huart3, tx_data, 8);
+    motor_last_tx_status = HAL_UART_Transmit_IT(&huart2, tx_data, 8);
     HAL_Delay(10);
 }
 

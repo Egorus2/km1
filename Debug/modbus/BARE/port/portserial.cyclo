@@ -1,7 +1,0 @@
-../modbus/BARE/port/portserial.c:37:1:vMBPortSerialEnable	3
-../modbus/BARE/port/portserial.c:56:1:xMBPortSerialInit	11
-../modbus/BARE/port/portserial.c:127:1:xMBPortSerialPutByte	1
-../modbus/BARE/port/portserial.c:137:1:xMBPortSerialGetByte	1
-../modbus/BARE/port/portserial.c:153:6:UART_IRQ_Handler	6
-../modbus/BARE/port/portserial.c:168:13:prvvUARTTxReadyISR	1
-../modbus/BARE/port/portserial.c:178:13:prvvUARTRxISR	1

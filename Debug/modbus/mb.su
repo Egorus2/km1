@@ -1,8 +1,0 @@
-../modbus/mb.c:130:1:eMBInit	24	static
-../modbus/mb.c:226:1:eMBRegisterCB	24	static,ignoring_inline_asm
-../modbus/mb.c:273:1:eMBClose	16	static
-../modbus/mb.c:292:1:eMBEnable	16	static
-../modbus/mb.c:310:1:eMBDisable	16	static
-../modbus/mb.c:332:1:eMBPoll	24	static
-../modbus/mb.c:414:10:Modbus_CRC16	32	static
-../modbus/mb.c:426:6:Modbus_WriteSingleRegister	40	static
