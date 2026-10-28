@@ -3,10 +3,36 @@ extern "C" {
 }
 
 #include <vector>
+#include <string.h>
 #include "stdint.h"
 #include "parser.h"
 
 static parser_callback_t g_callback = nullptr;
+
+static uint16_t crc16_ccitt_update(uint16_t crc, uint8_t data)
+{
+    crc ^= (uint16_t)data << 8;
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        if (crc & 0x8000)
+            crc = (crc << 1) ^ 0x1021;
+        else
+            crc <<= 1;
+    }
+    return crc;
+}
+
+static uint16_t crc16_ccitt_packet(uint8_t msg_type, uint8_t len, const uint8_t *data)
+{
+    uint16_t crc = 0xFFFF;
+    crc = crc16_ccitt_update(crc, msg_type);
+    crc = crc16_ccitt_update(crc, len);
+    for (uint8_t i = 0; i < len; i++)
+    {
+        crc = crc16_ccitt_update(crc, data[i]);
+    }
+    return crc;
+}
 
 class packet_t
 {
@@ -131,6 +157,16 @@ public:
 		delete(packet);
 	}
 
+	void reset()
+	{
+	    payload_index = 0;
+	    crc_low = 0;
+	    packet->data = nullptr;
+	    packet->len_payload = 0;
+	    packet->len_packet = 0;
+	    index = state::PREAMBULE_1;
+	}
+
 	void process_byte(uint8_t b)
 	{
 	    switch(index)
@@ -162,10 +198,28 @@ public:
 	        	packet->len_payload = b;
 	        	packet->len_packet = b + 6;
 	        	payload_index = 0;
-	        	index = state::DATA;
+	        	if (packet->len_payload > sizeof(buff))
+	        	{
+	        	    reset();
+	        	}
+	        	else if (packet->len_payload == 0)
+	        	{
+	        	    packet->data = buff;
+	        	    index = state::CRC_LOW;
+	        	}
+	        	else
+	        	{
+	        	    index = state::DATA;
+	        	}
 	            break;
 
 	        case state::DATA:
+	            if (payload_index >= sizeof(buff))
+	            {
+	                reset();
+	                break;
+	            }
+
 	            buff[payload_index++] = b;
 
 	            if (payload_index == packet->len_payload)
@@ -224,7 +278,28 @@ extern "C" void parser_process_byte(uint8_t b)
 
 extern "C" void send_uart_packet(uint8_t msg_type, uint8_t * data, uint8_t len, UART_HandleTypeDef *huart)
 {
-	packet_t packet(data, len, msg_type);
-	std::vector<uint8_t> buff = packet.make_buff();
-	HAL_UART_Transmit(huart, buff.data(), buff.size(), 100);
+	if ((data == nullptr) && (len > 0))
+	{
+	    return;
+	}
+
+	uint8_t buff[4 + 255 + 2 + 1];
+	uint16_t crc = crc16_ccitt_packet(msg_type, len, data);
+	uint16_t packet_size = 4 + len + 2 + 1;
+
+	buff[0] = 0xFF;
+	buff[1] = 0xFA;
+	buff[2] = msg_type;
+	buff[3] = len;
+
+	if (len > 0)
+	{
+	    memcpy(&buff[4], data, len);
+	}
+
+	buff[4 + len] = crc & 0xFF;
+	buff[5 + len] = (crc >> 8) & 0xFF;
+	buff[6 + len] = 0x0A;
+
+	HAL_UART_Transmit(huart, buff, packet_size, 100);
 }

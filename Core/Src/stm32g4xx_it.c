@@ -60,6 +60,7 @@ extern bool new_data;
 extern uint16_t downcounter;
 volatile uint8_t encoder_last_state = 0;
 volatile uint8_t motor_encoder_last_state = 0;
+volatile uint32_t enc_irq_count = 0;
 extern bool limit_flag_1;
 extern bool limit_flag_2;
 bool limit_flag = 0;
@@ -69,6 +70,9 @@ volatile GPIO_PinState limit_prev_13 = GPIO_PIN_RESET;
 volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
 
 extern volatile int state;
+extern volatile uint8_t emergency_stop_requested;
+extern volatile uint8_t emergency_stop_reason;
+extern volatile int8_t motor_motion_direction;
 
 /* USER CODE END PV */
 
@@ -445,10 +449,9 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
   /* USER CODE END EXTI15_10_IRQn 0 */
-  //HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
+  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
-  HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
@@ -532,10 +535,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	    	motor_encoder_last_state = motor_encoder_state;
 	    }
 
-    if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
-    {
-        encoder_position = 0; // сброс позиции на индекс
-    }
+    // Z channel is ignored; do not reset encoder_position by index pulse.
 	if ((GPIO_Pin == GPIO_PIN_14) || (GPIO_Pin == GPIO_PIN_13))
 	{
 	uint8_t curr14 = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET);
@@ -547,9 +547,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		    limit_flag_1 = 1;
 		    limit_flag = 1;
 		    limit_prev_13 = curr;
-		    if (state != 0x01)
+		    if ((state != 0x01) && (motor_motion_direction > 0))
 		    {
-		    	state = 0x33;
+		    	emergency_stop_requested = 1;
+		    	emergency_stop_reason = STOP_REASON_LIMIT_1;
+		    	HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
 		    }
 
 		}
@@ -560,9 +562,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		    limit_flag_2 = 1;
 		    limit_flag   = 1;
 		    limit_prev_14 = curr2;
-			if (state != 0x01)
+			if ((state != 0x01) && (motor_motion_direction < 0))
 			{
-			    state = 0x33;
+			    emergency_stop_requested = 1;
+			    emergency_stop_reason = STOP_REASON_LIMIT_2;
+			    HAL_GPIO_WritePin(MOTOR_BREAK_GPIO_Port, MOTOR_BREAK_Pin, GPIO_PIN_RESET);
 			}
 
 		}

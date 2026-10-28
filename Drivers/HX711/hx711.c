@@ -18,19 +18,19 @@ void hx711_delay_us(void)
   }
 }
 //#############################################################################################
-void hx711_lock(hx711_t *hx711)
+void hx711_lock(volatile hx711_t *hx711)
 {
   while (hx711->lock)
     hx711_delay(1);
   hx711->lock = 1;      
 }
 //#############################################################################################
-void hx711_unlock(hx711_t *hx711)
+void hx711_unlock(volatile hx711_t *hx711)
 {
   hx711->lock = 0;
 }
 //#############################################################################################
-void hx711_init(hx711_t *hx711, GPIO_TypeDef *clk_gpio, uint16_t clk_pin, GPIO_TypeDef *dat_gpio, uint16_t dat_pin)
+void hx711_init(volatile hx711_t *hx711, GPIO_TypeDef *clk_gpio, uint16_t clk_pin, GPIO_TypeDef *dat_gpio, uint16_t dat_pin)
 {
   hx711_lock(hx711);
   hx711->clk_gpio = clk_gpio;
@@ -58,7 +58,7 @@ void hx711_init(hx711_t *hx711, GPIO_TypeDef *clk_gpio, uint16_t clk_pin, GPIO_T
   hx711_unlock(hx711); 
 }
 //#############################################################################################
-int32_t hx711_value(hx711_t *hx711)
+int32_t hx711_value(volatile hx711_t *hx711)
 {
   uint32_t data = 0;
   uint32_t  startTime = HAL_GetTick();
@@ -86,7 +86,7 @@ int32_t hx711_value(hx711_t *hx711)
   return data;    
 }
 //#############################################################################################
-int32_t hx711_value_ave(hx711_t *hx711, uint16_t sample)
+int32_t hx711_value_ave(volatile hx711_t *hx711, uint16_t sample)
 {
   hx711_lock(hx711);
   int64_t  ave = 0;
@@ -100,7 +100,7 @@ int32_t hx711_value_ave(hx711_t *hx711, uint16_t sample)
   return answer;
 }
 //#############################################################################################
-void hx711_tare(hx711_t *hx711, uint16_t sample)
+void hx711_tare(volatile hx711_t *hx711, uint16_t sample)
 {
   hx711_lock(hx711);
   int64_t  ave = 0;
@@ -113,7 +113,7 @@ void hx711_tare(hx711_t *hx711, uint16_t sample)
   hx711_unlock(hx711);
 }
 //#############################################################################################
-void hx711_calibration(hx711_t *hx711, int32_t noload_raw, int32_t load_raw, float scale)
+void hx711_calibration(volatile hx711_t *hx711, int32_t noload_raw, int32_t load_raw, float scale)
 {
   hx711_lock(hx711);
   hx711->offset = noload_raw;
@@ -121,7 +121,7 @@ void hx711_calibration(hx711_t *hx711, int32_t noload_raw, int32_t load_raw, flo
   hx711_unlock(hx711);
 }
 //#############################################################################################
-float hx711_weight(hx711_t *hx711, uint16_t sample)
+float hx711_weight(volatile hx711_t *hx711, uint16_t sample)
 {
   hx711_lock(hx711);
   int64_t  ave = 0;
@@ -136,24 +136,24 @@ float hx711_weight(hx711_t *hx711, uint16_t sample)
   return answer;
 }
 //#############################################################################################
-void hx711_coef_set(hx711_t *hx711, float coef)
+void hx711_coef_set(volatile hx711_t *hx711, float coef)
 {
   hx711->coef = coef;  
 }
 //#############################################################################################
-float hx711_coef_get(hx711_t *hx711)
+float hx711_coef_get(volatile hx711_t *hx711)
 {
   return hx711->coef;  
 }
 //#############################################################################################
-void hx711_power_down(hx711_t *hx711)
+void hx711_power_down(volatile hx711_t *hx711)
 {
   HAL_GPIO_WritePin(hx711->clk_gpio, hx711->clk_pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(hx711->clk_gpio, hx711->clk_pin, GPIO_PIN_SET);
   hx711_delay(1);  
 }
 //#############################################################################################
-void hx711_power_up(hx711_t *hx711)
+void hx711_power_up(volatile hx711_t *hx711)
 {
   HAL_GPIO_WritePin(hx711->clk_gpio, hx711->clk_pin, GPIO_PIN_RESET);
 }

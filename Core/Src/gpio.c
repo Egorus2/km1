@@ -84,7 +84,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : ENC_Z_ITR12_Pin */
   GPIO_InitStruct.Pin = ENC_Z_ITR12_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ENC_Z_ITR12_GPIO_Port, &GPIO_InitStruct);
 

@@ -60,6 +60,7 @@ extern bool new_data;
 extern uint16_t downcounter;
 volatile uint8_t encoder_last_state = 0;
 volatile uint8_t motor_encoder_last_state = 0;
+volatile uint32_t enc_irq_count = 0;
 extern bool limit_flag_1;
 extern bool limit_flag_2;
 bool limit_flag = 0;
@@ -68,6 +69,7 @@ extern volatile int stop_count;
 volatile GPIO_PinState limit_prev_13 = GPIO_PIN_RESET;
 volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
 
+extern volatile int state;
 
 /* USER CODE END PV */
 
@@ -78,6 +80,17 @@ volatile GPIO_PinState limit_prev_14 = GPIO_PIN_RESET;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static int8_t quad_decode_step(uint8_t prev_state, uint8_t curr_state)
+{
+    static const int8_t table[16] = {
+         0, -1,  1,  0,
+         1,  0,  0, -1,
+        -1,  0,  0,  1,
+         0,  1, -1,  0
+    };
+
+    return table[((prev_state & 0x03U) << 2) | (curr_state & 0x03U)];
+}
 
 /* USER CODE END 0 */
 
@@ -338,7 +351,8 @@ void TIM1_BRK_TIM15_IRQHandler(void)
 void TIM1_UP_TIM16_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 0 */
-	Encoder_UpdateRPM();
+  Encoder_UpdateRPM();
+
   /* USER CODE END TIM1_UP_TIM16_IRQn 0 */
   HAL_TIM_IRQHandler(&htim1);
   /* USER CODE BEGIN TIM1_UP_TIM16_IRQn 1 */
@@ -441,59 +455,12 @@ void USART3_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
-	uint8_t curr14 = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET);
-	uint8_t curr13 = (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == GPIO_PIN_RESET);
-	if (curr13)
-		{
 
-		    GPIO_PinState curr = HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13);
-
-		    //if (curr == GPIO_PIN_RESET && limit_prev_13 == GPIO_PIN_SET )
-		    //{
-		        limit_flag_1 = 1;
-		        //Motor_Stop();
-		        limit_flag = 1;
-		    //}
-
-		    limit_prev_13 = curr;
-
-
-
-	        // Сбрасываем таймер
-	        //__HAL_TIM_SET_COUNTER(&htim2, 0);
-
-	        // Запускаем таймер на антидребезг
-	        //HAL_TIM_Base_Start_IT(&htim2);
-
-
-		}
-		else if(curr14)
-		{
-
-				GPIO_PinState curr2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
-		        limit_flag_2 = 1;
-		        limit_flag   = 1;
-		        limit_prev_14 = curr2;
-
-
-	        // Выключаем EXTI, чтобы дребезг не дергал ISR
-			//HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
-	        // Сбрасываем таймер
-	        //__HAL_TIM_SET_COUNTER(&htim2, 0);
-
-	        // Запускаем таймер на антидребезг
-	       // HAL_TIM_Base_Start_IT(&htim2);
-
-
-			//char msg1 = 'B'; // символ для отправки
-			//HAL_UART_Transmit(&huart1, (uint8_t*)&msg1, 1, HAL_MAX_DELAY);
-
-		}
   /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
+  //HAL_GPIO_EXTI_IRQHandler(MOTOR_ENC_A_ITR11_old_Pin);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_14);
-  HAL_GPIO_EXTI_IRQHandler(ENC_Z_ITR12_Pin);
+  // Z channel is ignored; encoder position is counted only by A/B.
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
@@ -577,15 +544,38 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	    	motor_encoder_last_state = motor_encoder_state;
 	    }
 
-    if(GPIO_Pin == ENC_Z_ITR12_Pin) // Z
-    {
-        encoder_position = 0; // сброс позиции на индекс
-    }
+    // Z channel is ignored; do not reset encoder_position by index pulse.
+	if ((GPIO_Pin == GPIO_PIN_14) || (GPIO_Pin == GPIO_PIN_13))
+	{
+	uint8_t curr14 = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_RESET);
+	uint8_t curr13 = (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13) == GPIO_PIN_RESET);
+	if (curr13)
+		{
 
-    if (limit_flag != 1)
-    {
+		    GPIO_PinState curr = HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13);
+		    limit_flag_1 = 1;
+		    limit_flag = 1;
+		    limit_prev_13 = curr;
+		    if (state != 0x01)
+		    {
+		    	state = 0x33;
+		    }
 
-    }
+		}
+		else if(curr14)
+		{
+
+			GPIO_PinState curr2 = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14);
+		    limit_flag_2 = 1;
+		    limit_flag   = 1;
+		    limit_prev_14 = curr2;
+			if (state != 0x01)
+			{
+			    state = 0x33;
+			}
+
+		}
+	}
 	new_data = true;
 }
 
@@ -594,12 +584,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (htim->Instance == TIM2)
     {
-    	//Motor_Stop();
-        //HAL_TIM_Base_Stop_IT(&htim2);          // Остановить таймер
-        //__HAL_TIM_SET_COUNTER(&htim2, 0);      // Сбросить счётчик
+
     	limit_flag = 0;
-		//Motor_Stop();
-		//stop_count ++;
 
     }
     if(htim->Instance == TIM5)

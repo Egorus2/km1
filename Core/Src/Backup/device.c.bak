@@ -7,6 +7,7 @@
 
 #define ENCODER_PPR 4000
 #define TIMER_PERIOD_MS 100
+#define RPM_WINDOW 5
 
 volatile hx711_t hx711_handle;
 volatile long int optical_count;
@@ -19,7 +20,12 @@ volatile int32_t motor_encoder_position = 0;  // текущая позиция �
 volatile int32_t motor_last_position = 0;     // позиция на предыдущем измерении
 volatile float motor_encoder_rpm = 0.0f;      // скорость вращения
 volatile uint32_t motor_last_tick = 0;
+extern volatile float encoder_lim_1;
+extern volatile int state;
 
+float angle_buffer[RPM_WINDOW];
+int buffer_index = 0;
+bool buffer_filled = false;
 float sum_ticks;
 float sum_time;
 
@@ -60,15 +66,34 @@ void Encoder_Init(void)
 void Encoder_UpdateRPM(void)
 {
 
-    int32_t delta_pos = 360*((float)encoder_position - (float)last_position)/4000;
+    //float delta_pos = 360*((float)encoder_position - (float)last_position)/4000;
     float delta_time_ms = 100;
+    if (state == 0x01)
+    {
+    	angle = -360*(float)encoder_position/4000;
+    }
+    else
+    {
+    	angle = -360*(float)encoder_position/4000 - encoder_lim_1 + 180;
+    }
+    //encoder_rpm = 60 * 1000 * (angle - last_position) / (delta_time_ms) / 360;
 
-    angle = 360*(float)encoder_position/4000;
+    angle_buffer[buffer_index] = angle;
+    buffer_index++;
 
-    encoder_rpm = 90*((float)delta_pos) / (delta_time_ms);
+    if (buffer_index >= RPM_WINDOW) {
+        buffer_index = 0;
+        buffer_filled = true;
+    }
 
-    last_position = encoder_position;
+    if (buffer_filled) {
+        float angle_old = angle_buffer[buffer_index];
 
+        float delta_angle = angle - angle_old;
+        float total_time = delta_time_ms * RPM_WINDOW;
+
+        encoder_rpm = 60.0f * 1000.0f * delta_angle / total_time / 360.0f;
+    }
 
 
 
@@ -145,6 +170,8 @@ void modbus_send_simple(uint8_t slave_id, uint16_t reg_addr, uint16_t value)
 
 void Motor_Move(int current, int velocity, int direction)
 {
+	  modbus_send_simple(1, 0x0191, current);
+	  //modbus_send_simple(1, 0x2001, current);
 	  modbus_send_simple(1, 0x6200, 0x0002);
 	  modbus_send_simple(1, 0x6203, velocity*direction);
 	  modbus_send_simple(1, 0x6002, 0x0010);

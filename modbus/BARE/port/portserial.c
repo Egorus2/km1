@@ -153,12 +153,12 @@ xMBPortSerialGetByte( CHAR * pucByte )
 BOOL UART_IRQ_Handler(USART_TypeDef * usart) {
 	if (usart == huart.Instance) {
 		if((__HAL_UART_GET_IT(&huart, UART_IT_RXNE) != RESET) && (__HAL_UART_GET_IT_SOURCE(&huart, UART_IT_RXNE) != RESET)) {
-			pxMBFrameCBByteReceived();
+			prvvUARTRxISR();
 			__HAL_UART_SEND_REQ(&huart, UART_RXDATA_FLUSH_REQUEST);
 			return TRUE;
 		}
 		if((__HAL_UART_GET_IT(&huart, UART_IT_TXE) != RESET) &&(__HAL_UART_GET_IT_SOURCE(&huart, UART_IT_TXE) != RESET)) {
-			pxMBFrameCBTransmitterEmpty();
+			prvvUARTTxReadyISR();
 			return TRUE;
 		}
 	}
